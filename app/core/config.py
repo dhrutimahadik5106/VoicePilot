@@ -3,8 +3,24 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+def validate_recordings_dir(value) -> Path:
+    """Lexical-only validation; do not touch the filesystem during settings load."""
+    text = str(value).replace("\\", "/")
+    parts = text.split("/")
+    reserved = {"CON", "PRN", "AUX", "NUL",
+                *{f"COM{i}" for i in range(1, 10)}, *{f"LPT{i}" for i in range(1, 10)}}
+    if (not parts or parts[0] != "recordings"
+            or any(not part or part in {".", ".."}
+                   or part.endswith((".", " "))
+                   or part.split(".")[0].upper() in reserved
+                   or any(char in '<>:"|?*' or ord(char) < 32 for char in part)
+                   for part in parts)):
+        raise ValueError("Recording directory must be within recordings")
+    return Path(*parts)
 
 
 class Settings(BaseSettings):
@@ -28,6 +44,54 @@ class Settings(BaseSettings):
     max_plan_steps: int = Field(default=10, ge=1, le=100)
     max_retries: int = Field(default=2, ge=0, le=10)
     task_timeout_seconds: float = Field(default=60.0, gt=0, le=3600, allow_inf_nan=False)
+
+    audio_sample_rate: int = Field(default=16000, ge=8000, le=48000)
+    audio_channels: Literal[1, 2] = 1
+    audio_dtype: Literal["int16"] = "int16"
+    audio_block_size: int = Field(default=1024, ge=64, le=4096)
+    audio_max_duration_seconds: float = Field(default=30.0, ge=0.1, le=120, allow_inf_nan=False)
+    audio_input_device: int | str | None = None
+    recordings_dir: Path = Path("recordings")
+    recording_persistence_enabled: bool = False
+
+    @field_validator("audio_sample_rate", "audio_channels", "audio_block_size",
+                     "audio_max_duration_seconds", mode="before")
+    @classmethod
+    def validate_audio_number(cls, value):
+        if isinstance(value, bool):
+            raise ValueError("Audio limits must be numeric")
+        return value
+
+    @field_validator("audio_channels", mode="before")
+    @classmethod
+    def parse_channels(cls, value):
+        if isinstance(value, str) and value in {"1", "2"}:
+            return int(value)
+        return value
+
+    @field_validator("audio_input_device", mode="before")
+    @classmethod
+    def validate_device(cls, value):
+        if value is None:
+            return None
+        if isinstance(value, bool) or not isinstance(value, (int, str)):
+            raise ValueError("Invalid input device")
+        if isinstance(value, str):
+            value = value.strip()
+            if value == "default":
+                return None
+            if not value or any(ord(char) < 32 for char in value):
+                raise ValueError("Invalid input device")
+            if value.lstrip("-").isdigit():
+                value = int(value)
+        if isinstance(value, int) and value < 0:
+            raise ValueError("Invalid input device")
+        return value
+
+    @field_validator("recordings_dir", mode="before")
+    @classmethod
+    def validate_recording_directory(cls, value):
+        return validate_recordings_dir(value)
 
 
 @lru_cache(maxsize=1)

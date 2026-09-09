@@ -35,6 +35,10 @@ def test_safe_defaults(tmp_path):
         "whisper_model": "base", "whisper_device": "cpu",
         "whisper_compute_type": "int8", "max_plan_steps": 10,
         "max_retries": 2, "task_timeout_seconds": 60.0,
+        "audio_sample_rate": 16000, "audio_channels": 1, "audio_dtype": "int16",
+        "audio_block_size": 1024, "audio_max_duration_seconds": 30.0,
+        "audio_input_device": None, "recordings_dir": Path("recordings"),
+        "recording_persistence_enabled": False,
     }
     assert list(tmp_path.iterdir()) == []
 

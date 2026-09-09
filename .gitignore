@@ -52,3 +52,4 @@ experiments/raw/
 *.onnx
 *.pt
 *.pth
+*.wav
