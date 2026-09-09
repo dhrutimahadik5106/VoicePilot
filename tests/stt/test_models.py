@@ -28,7 +28,7 @@ def test_configuration_validation(field, value):
 
 def test_configuration_defaults_overrides_and_no_writes(monkeypatch, tmp_path):
     settings = Settings()
-    assert (settings.whisper_model, settings.whisper_device, settings.whisper_compute_type) == ("base", "cpu", "int8")
+    assert (settings.whisper_model, settings.whisper_device, settings.whisper_compute_type) == ("small", "cpu", "int8")
     assert settings.stt_language is None
     assert settings.stt_vad_filter and not settings.stt_word_timestamps
     assert settings.stt_max_duration_seconds == 120
@@ -86,7 +86,7 @@ def test_result_metrics_and_privacy():
         {"status": TranscriptionStatus.FAILED},
     ]:
         with pytest.raises(ValidationError):
-            TranscriptionResult(**(result.model_dump(exclude={"real_time_factor"}) | changes))
+            TranscriptionResult(**(result.model_dump(exclude={"real_time_factor", "raw_transcript", "normalized_transcript", "total_processing_duration"}) | changes))
 
 
 def test_failure_and_zero_duration_factor():
@@ -102,3 +102,34 @@ def test_word_timestamp_validation():
     with pytest.raises(ValidationError):
         TranscriptSegment(text="one", start=0, end=1,
                           words=(WordTimestamp(text="one", start=0, end=2),))
+
+
+@pytest.mark.parametrize("field,value", [
+    ("audio_silence_duration_seconds", 0), ("audio_silence_duration_seconds", 31),
+    ("audio_silence_threshold", 0), ("audio_silence_threshold", float("nan")),
+    ("stt_temperature", -1), ("stt_temperature", 1.1), ("stt_temperature", True),
+    ("stt_vad_min_silence_duration_ms", 0), ("stt_vad_min_silence_duration_ms", 5001),
+    ("stt_initial_prompt", "x" * 501), ("stt_hotwords", "x" * 301),
+    ("stt_initial_prompt", "private\ntext"), ("stt_hotwords", "x\x1b"),
+])
+def test_refinement_settings_validation(field, value):
+    with pytest.raises(ValidationError):
+        Settings(**{field: value})
+
+
+def test_domain_defaults_and_environment(monkeypatch):
+    settings = Settings()
+    for term in ("VoicePilot", "Spotify", "WhatsApp", "Chrome", "YouTube", "Dhruti"):
+        assert term in settings.stt_initial_prompt and term in settings.stt_hotwords
+    assert settings.whisper_model == "small"
+    assert settings.audio_max_duration_seconds == 120
+    assert not settings.audio_silence_stop_enabled
+    monkeypatch.setenv("VOICEPILOT_STT_INITIAL_PROMPT", "")
+    monkeypatch.setenv("VOICEPILOT_STT_HOTWORDS", "")
+    monkeypatch.setenv("VOICEPILOT_STT_TEMPERATURE", "0.2")
+    monkeypatch.setenv("VOICEPILOT_AUDIO_SILENCE_STOP_ENABLED", "true")
+    monkeypatch.setenv("VOICEPILOT_AUDIO_SILENCE_DURATION_SECONDS", "3")
+    settings = Settings()
+    assert settings.stt_initial_prompt == settings.stt_hotwords == ""
+    assert settings.stt_temperature == .2
+    assert settings.audio_silence_stop_enabled and settings.audio_silence_duration_seconds == 3

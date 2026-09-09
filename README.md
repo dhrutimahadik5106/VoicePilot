@@ -1,192 +1,173 @@
 # VoicePilot
 
-VoicePilot is a planned voice-driven assistant with authentication, risk checks,
-verification and recovery. Phases 1-3 implement foundation, explicit audio input and local speech-to-text.
-The user verified Phase 2 device listing, in-memory recording, WAV saving,
-cancellation and audio quality. Phase 3 is fake-tested; manual STT verification
-is pending. This is not production-ready.
+Phases 1-3 implement project foundation, explicit audio input and local STT.
+Recognized speech is displayed as text and is never executed.
+Python 3.12.10 and the existing venv are preserved; no packages were changed.
+This is not production-ready.
 
-## Existing environment and tests
+The user verified Phase 2 device listing, recording, WAV saving, cancellation and
+audio quality. In manual Phase 3 testing, base misrecognized words and endings;
+small improved VoicePilot/Spotify recognition but one first run took 262.431s.
+That observation did not separate model initialization from inference and is
+not an inference benchmark. The refinements below are fake-tested only; their
+real accuracy and performance have not been measured.
 
-Preserve Python 3.12.10 and the existing venv. Do not recreate it or install or
-upgrade packages. Run from the project root in PowerShell; activation is unnecessary.
+## Run from the project root
+
+Use the existing interpreter explicitly; activation is unnecessary. Do not
+recreate venv or install/upgrade packages. Direct dependencies remain pydantic,
+pydantic-settings, numpy, sounddevice and faster-whisper; tests use pytest.
+
+**Model notice:** the first transcription with small may download that model into
+the ignored models/whisper cache. Recognition itself stays local; audio is never
+uploaded. These manual commands were not automatically executed.
 
 ```powershell
-.\venv\Scripts\python.exe --version
-.\venv\Scripts\python.exe -m pytest
-.\venv\Scripts\python.exe -m pytest tests/audio
+# Flexible duration: stop by Enter, cancel, or the safety limit
+.\venv\Scripts\python.exe -m app.stt.cli microphone
+
+# Keep one process/model alive for consecutive deliberate recordings
+.\venv\Scripts\python.exe -m app.stt.cli microphone --session
+
+# Explicit limit of ten seconds
+.\venv\Scripts\python.exe -m app.stt.cli microphone --seconds 10
+
+# Opt in to automatic stopping after two seconds of silence following speech
+.\venv\Scripts\python.exe -m app.stt.cli microphone --silence-seconds 2
+
+# English; or use --language auto and speak a short Hindi/Marathi sentence
+.\venv\Scripts\python.exe -m app.stt.cli microphone --language en
+.\venv\Scripts\python.exe -m app.stt.cli microphone --language auto
+
+# Transcribe only this explicitly selected file
+.\venv\Scripts\python.exe -m app.stt.cli file recordings\phase2-test.wav
 ```
 
-Runtime direct dependencies: pydantic, pydantic-settings, numpy, sounddevice and faster-whisper.
-pytest is the test dependency. All already existed; no packages were changed.
-Project metadata is not a lockfile.
+Press Enter at the consent prompt to start. During capture, Enter stops and keeps
+the samples for transcription; c or Ctrl+C cancels and discards them. Elapsed
+seconds are displayed while the foreground terminal is polled. No global hooks,
+background input reader or continuous listening are used. Keep terminal focus.
 
-## Explicit audio input and manual checks
+Without --seconds, capture has no short fixed limit: it stops on Enter, optional
+silence detection, or the safety maximum. The safety maximum defaults to 120s
+and cannot exceed 120s. The STT duration limit also caps capture. --seconds adds
+an explicit shorter cap; either cap can still end speech, so stop before it.
+Native driver calls can delay a stop request despite application limits.
 
-These commands are for the user to run manually. Automated tests never use a real
-microphone. Listing queries device metadata without opening a capture stream.
+Silence stopping defaults off. When enabled, block RMS above the configured
+threshold first marks speech activity; subsequent below-threshold blocks count
+toward the silence interval. Renewed activity resets that interval. Leading
+silence waits for Enter/cancellation/safety rather than immediately stopping.
+This is an energy heuristic, not linguistic end-of-sentence detection. Background
+noise can prevent stopping, and quiet speech/long pauses can stop too early.
+Trailing captured silence is retained. Adjust or disable this feature as needed.
 
+Audio is not saved automatically. STT has no --save option. Session mode keeps
+one model loaded while asking for fresh consent before each recording; the
+microphone is stopped between requests. Type q/c at the next consent prompt to
+end the session. Cancellation ends the current session and discards its current
+capture/transcript. No history database or permanent transcript is created.
+
+## Accuracy and vocabulary settings
+
+.env.example lists VOICEPILOT_ environment variables. Settings do not load a
+model, access devices, read .env automatically, or create directories.
+
+Defaults:
+- WHISPER_MODEL=small, WHISPER_DEVICE=cpu, WHISPER_COMPUTE_TYPE=int8.
+- STT_BEAM_SIZE=5 (1-10); STT_TEMPERATURE=0 (0-1).
+- STT_LANGUAGE=auto; STT_VAD_FILTER=true; STT_WORD_TIMESTAMPS=false.
+- STT_VAD_MIN_SILENCE_DURATION_MS=1000 (100-5000); VAD speech padding is 400ms.
+- AUDIO_MAX_DURATION_SECONDS=120 and STT_MAX_DURATION_SECONDS=120; both may
+  be lowered to 0.1s. There is no unbounded capture mode.
+- AUDIO_SILENCE_STOP_ENABLED=false; AUDIO_SILENCE_DURATION_SECONDS=2
+  (0.25-30); AUDIO_SILENCE_THRESHOLD=0.01 (normalized RMS, greater than 0 to 0.25).
+
+Faster-Whisper receives STT_INITIAL_PROMPT and STT_HOTWORDS with default vocabulary
+VoicePilot, Spotify, WhatsApp, Chrome, YouTube and Dhruti. These are decoding hints,
+not replacement rules or instructions to execute. Custom prompt/hotword text is
+bounded and rejects control characters; neither is logged. Empty strings disable
+the respective hint. The installed Faster-Whisper supports the hotwords option.
+
+No arbitrary correction is performed: "Play Voice Pilot" will not be silently
+changed to "Hey VoicePilot". Structured results preserve:
+- raw_transcript: exact backend segment strings concatenated in time order.
+- normalized_transcript: only leading/trailing segment whitespace is trimmed
+  and segment boundaries joined with one space. Internal text and words remain.
+- text: the compatibility field for normalized_transcript.
+Segments retain their raw text. CLI display also removes terminal control
+characters, with no length truncation or lexical rewrite.
+
+Accuracy is not guaranteed. Vocabulary bias can introduce unwanted words; VAD
+can omit quiet speech; accents, noise and pauses matter. Small may still be slow
+on a 16 GB laptop. No medium/large model or GPU migration is made. No performance,
+WER or accuracy improvement is claimed from fake tests.
+
+Use multilingual small for Hindi/Marathi; .en models only support English.
+Short utterances and mixed-language speech make auto-detection less reliable,
+and English domain hints may bias multilingual output. Try an explicit language
+code or empty hints when appropriate. Language probability is detection metadata,
+not transcription confidence, and is omitted for forced-language requests.
+
+## Cold versus warm timing
+
+Each result/CLI output separates:
+- model_load_duration: model initialization, including model download/cache
+  resolution when needed. This is never counted as pure inference.
+- inference_duration: backend transcribe call and full segment-generator
+  consumption, including language detection/VAD/decoding and segment conversion.
+- processing_duration / total_processing_duration: engine preparation, load and
+  inference plus orchestration. Excludes microphone capture, WAV file reading
+  and final cleanup.
+- source_audio_duration and real_time_factor: total processing / audio seconds,
+  unavailable when source duration is zero.
+- cold_start: true when this engine needed to construct its model, false when
+  it reused its model, and unknown for requests rejected before that decision.
+
+Cold does not mean a download definitely occurred. A cached disk model still
+requires initialization in a new process. Separate CLI invocations are new
+processes. Use --session and compare its first and second successful results
+to observe cold and warm timings on this laptop. No measured speedup is assumed.
+Ctrl+C requests cancellation, but native model/download operations can delay it.
+Model references are dropped at session exit; native libraries manage reclamation.
+
+For strictly cached models:
+```powershell
+$env:VOICEPILOT_STT_LOCAL_FILES_ONLY = "true"
+.\venv\Scripts\python.exe -m app.stt.cli microphone --session
+```
+This fails safely if the chosen model/tokenizer is not already cached.
+
+## Audio formats, privacy and tests
+
+The existing Phase 2 commands remain available:
 ```powershell
 .\venv\Scripts\python.exe -m app.audio.cli devices
 .\venv\Scripts\python.exe -m app.audio.cli record --seconds 3
 .\venv\Scripts\python.exe -m app.audio.cli record --seconds 3 --save --filename phase2-test.wav
 ```
+Only explicit Phase 2 --save enables WAV export; existing files require explicit
+--overwrite. Exports stay within the ignored recordings tree.
 
-For recording, press Enter at the start prompt to deliberately permit microphone
-capture. The terminal displays RECORDING requested and RECORDING STOPPED.
-During capture, Enter stops and returns captured audio; c or Ctrl+C cancels and
-discards it. The duration limit stops capture automatically. This is terminal
-push-to-talk with explicit start/stop, not a global hotkey or a hold-to-talk hook.
-The terminal must have focus. No background input reader or listener is started.
+Audio capture uses signed int16, default 16000 Hz mono, 1024-frame blocks.
+Selected WAVs support PCM 8/16/24/32-bit, 8000-48000 Hz and 1-8 channels, within
+the configured duration. Empty, corrupt, truncated and oversized files fail.
+No folders are scanned. Input is downmixed and converted to mono float32 at
+16000 Hz; other rates use an in-memory WAV buffer and Faster-Whisper's resampler.
+No temporary recording file or extra dependency is needed.
 
-Without --save, audio stays in memory and is released when the CLI exits.
---save explicitly enables persistence for that invocation and requests export.
-The persistence setting defaults to false; setting it true alone never causes a
-save. Library callers must explicitly call save_wav with persistence_enabled=True
-(or their approved configuration value). Filenames default to UTC timestamp plus
-a random suffix; a provided name must be a simple .wav basename. Existing files
-are rejected unless --overwrite is explicitly supplied together with --save.
-All destinations are restricted to recordings/ or its subdirectories under the
-current project root; traversal, absolute paths and linked destinations are rejected.
-Run from the project root. Export creates only the requested directory tree.
-WAV uses standard-library wave, signed 16-bit little-endian PCM; no scipy.
-
-To select a device, use its numeric index or exact, unambiguous name:
-
-```powershell
-$env:VOICEPILOT_AUDIO_INPUT_DEVICE = "0"
-.\venv\Scripts\python.exe -m app.audio.cli record --seconds 3
-```
-
-Use an index from your own device listing. With no override the operating system's
-default input is used; a missing default fails instead of choosing another device.
-
-## Configuration
-
-.env.example lists VOICEPILOT_ variables. No .env is created or automatically read.
-Settings neither query devices nor create directories. get_settings() caches one
-instance; get_settings.cache_clear() intentionally reloads configuration.
-Audio defaults: 16000 Hz, mono, int16, 1024-frame blocks, maximum 30 seconds,
-default input device, recordings/ directory, persistence disabled.
-Allowed bounds: 8000?48000 Hz, 1?2 channels, 64?4096-frame blocks, duration
-0.1?120 seconds. Hardware support is checked only at explicit capture time.
-The requested duration must be at least 0.1 seconds and within the configured maximum.
-
-## Privacy and limitations
-
-No continuous listening, hidden capture, automatic saving, playback, wake word,
-speaker recognition, LLM calls, LangGraph, computer control,
-browser automation, screen perception, memory, API or GUI is implemented.
-Future speaker enrollment requires separate explicit consent.
-Cancellation drops application-held sample references; this is not a promise of
-cryptographic memory erasure. The OS/driver may retain its own buffers.
-
-Audio code emits no logs containing samples, embeddings, exception details or
-sensitive paths. The Phase 1 logger retains its fixed-event allowlist.
-PermissionError maps to permission_denied; PortAudio missing/unavailable device
-codes map to controlled errors. Native errors that do not expose a distinct
-permission code are reported as stream_failed rather than guessed from text.
-Native driver calls may block despite application deadlines; duration bounds cap
-retained samples and stop requests, but cannot guarantee driver response time.
-
-Automated tests verify mocks, state transitions, duration limits, cancellation,
-cleanup attempts, model/configuration validation and temporary-file WAV output.
-The user has verified Phase 2 recording and cancellation on their microphone;
-other devices and driver behavior are not covered by that verification. Symlink checks prevent
-ordinary linked destinations; export does not defend against a concurrent local
-attacker replacing filesystem entries. Failed disk writes may leave a partial WAV.
-
-## Phase 3: local speech-to-text
-
-Implemented with fake-based automated tests: one selected PCM WAV, existing
-RecordedAudio and explicit microphone capture followed by in-memory transcription.
-Real STT accuracy and latency have NOT been manually verified.
-
-**Before the first manual transcription:** Faster-Whisper may download the
-configured model once into models/whisper. Recognition runs locally; audio is
-never uploaded. These commands are provided for the user and were not executed
-by the agent. Run from the repository root:
-
-```powershell
-# Transcribe the existing user-verified microphone sample
-.\venv\Scripts\python.exe -m app.stt.cli file recordings\phase2-test.wav
-
-# Record up to five seconds and transcribe in memory
-.\venv\Scripts\python.exe -m app.stt.cli microphone --seconds 5
-
-# Explicit English
-.\venv\Scripts\python.exe -m app.stt.cli microphone --seconds 5 --language en
-
-# Automatic detection: speak one short Hindi or Marathi sentence
-.\venv\Scripts\python.exe -m app.stt.cli microphone --seconds 5 --language auto
-```
-
-Example Hindi: "??????, ?? ???? ????? ???"
-Example Marathi: "???????, ?? ?????? ??? ???."
-Keep the default multilingual base model for these tests; .en models support
-English only. No accuracy claim is made for any sentence.
-
-Microphone mode requires Enter at the consent prompt. During capture, Enter
-stops, c or Ctrl+C cancels and discards audio. The Phase 2 recorder is reused.
-Capture is then transcribed in memory without saving a WAV. During inference,
-Ctrl+C requests cancellation; native inference/model-download calls may delay it.
-The CLI displays transcript, language and timing. It never executes the transcript,
-and it stores no transcript, command history or recording.
-
-STT defaults: base / cpu / int8; automatic language detection; VAD enabled;
-word timestamps disabled; beam size 5; maximum input duration 120 seconds.
-VOICEPILOT_STT_LANGUAGE accepts auto or a language code (en, hi, mr, etc.).
-VOICEPILOT_STT_WORD_TIMESTAMPS enables word timing in structured results.
-VOICEPILOT_STT_VAD_FILTER and VOICEPILOT_STT_BEAM_SIZE control inference.
-Existing VOICEPILOT_WHISPER_MODEL, VOICEPILOT_WHISPER_DEVICE and
-VOICEPILOT_WHISPER_COMPUTE_TYPE now configure the real local adapter.
-The full set is listed in .env.example; settings load no models or devices.
-
-For cached models only, explicitly set:
-
-```powershell
-$env:VOICEPILOT_STT_LOCAL_FILES_ONLY = "true"
-.\venv\Scripts\python.exe -m app.stt.cli file recordings\phase2-test.wav
-```
-
-Offline mode fails safely if the model/tokenizer is not cached.
-The cache is restricted lexically to models/ and remains ignored by Git.
-An engine caches one model until close; CLI exit drops its model reference.
-
-Supported WAVs: regular, uncompressed PCM files, 8/16/24/32-bit, 8000-48000 Hz,
-one through eight channels. Input must be nonempty and at most the configured
-duration (hard maximum 120 seconds). Corrupt/truncated/oversized files are rejected.
-Only the explicitly selected file is read; folders are never scanned.
-File channels are averaged and quantized to mono int16. For inference, conversion
-uses mono float32 at 16000 Hz; other rates use Faster-Whisper's PyAV resampler
-with an in-memory WAV buffer. No extra resampling or WAV-writing package is added.
-
-Results include audio UUID, optional execution correlation UUID, timestamp,
-transcript, language, segments, optional word timestamps, model/device/compute
-settings, source duration, processing duration and real-time factor.
-Language probability is detection metadata, **not transcription confidence**.
-It is omitted for explicitly selected languages. Processing time includes
-preparation, model loading and inference, but excludes file reading, microphone
-capture and final cleanup. RTF is processing time divided by source duration;
-it is unavailable when source duration is zero. Silence may yield an empty
-successful transcript. UUIDs are compatibility fields, not a history database.
-
-Ordinary logs contain no transcripts/audio; Faster-Whisper's text-capable logger
-is suppressed during inference. Explicit CLI transcript output can still be
-visible in terminal scrollback. Temporary buffers are closed, not securely wiped.
-Native/model memory reclamation follows the underlying libraries.
-
-Accuracy can vary with language, accent, noise, microphone quality and speech
-length. VAD can omit quiet speech, channel averaging can cancel opposing signals,
-and quantization can lose low-level detail. Whisper can hallucinate text during
-silence/noise. Laptop latency, model downloads and memory usage vary by model.
-No WER, benchmark, confidence score or accuracy result is claimed.
+Audio/transcripts are excluded from ordinary logs; text-capable backend logging
+is suppressed. Explicit transcript display can remain in terminal scrollback.
+Cancellation discards application references, not a guarantee of secure memory
+erasure. OS/driver buffers are outside application control. Model files and
+recordings remain ignored. No wake word, speaker verification, LLM, computer
+control, history database, API or frontend is implemented. Phase 4 is not started.
 
 ```powershell
 .\venv\Scripts\python.exe -m pytest
+.\venv\Scripts\python.exe -m pytest tests/audio
 .\venv\Scripts\python.exe -m pytest tests/stt
 ```
-
-STT tests use fake models/recorders, blocked real-model/hardware imports and
-blocked socket connections. WAV files exist only in pytest temporary directories.
-Actual model loading, resampling and inference need the manual checks above.
+Tests use fake capture/model backends, synthetic audio and temporary WAVs.
+STT tests block real model/hardware imports and socket connections. No real
+microphone, download, model inference or performance benchmark is run by tests.

@@ -94,3 +94,81 @@ def test_invalid_language_before_input():
     assert main(["microphone", "--language", "English"], settings=Settings(),
                 engine=engine, write=lambda _: None) == 2
     assert engine.requests == []
+
+
+def test_default_capture_has_no_fixed_seconds_and_no_save(tmp_path):
+    recorder, engine = FakeRecorder(), FakeEngine()
+    assert main(["microphone"], settings=Settings(), engine=engine, recorder=recorder,
+                read=lambda _: "", write=lambda _: None) == 0
+    assert recorder.calls == [None]
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_explicit_ten_second_capture():
+    recorder = FakeRecorder()
+    assert main(["microphone", "--seconds", "10"], settings=Settings(), engine=FakeEngine(),
+                recorder=recorder, read=lambda _: "", write=lambda _: None) == 0
+    assert recorder.calls == [10]
+
+
+def test_session_reuses_model_for_consecutive_transcriptions(tmp_path):
+    from app.stt.faster_whisper_engine import FasterWhisperEngine
+    from tests.stt import FakeModel
+    loads, output = [], []
+    engine = FasterWhisperEngine(Settings(), model_factory=lambda *a, **k: loads.append(1) or FakeModel())
+    answers = iter(["", "", "q"])
+    recorder = FakeRecorder()
+    assert main(["microphone", "--session"], settings=Settings(), engine=engine,
+                recorder=recorder, read=lambda _: next(answers), write=output.append) == 0
+    assert recorder.calls == [None, None] and loads == [1]
+    assert sum("Start: cold" in line for line in output) == 1
+    assert sum("Start: warm" in line for line in output) == 1
+    assert list(tmp_path.iterdir()) == []
+    engine.close()
+
+
+def test_cli_preserves_final_sentence_words(tmp_path):
+    from app.stt.faster_whisper_engine import FasterWhisperEngine
+    from tests.stt import FakeModel, segment
+    sentence = "Hey Voice Pilot open Spotify and please keep every final word"
+    model = FakeModel([segment(" " + sentence, end=1)])
+    engine = FasterWhisperEngine(Settings(), model_factory=lambda *a, **k: model)
+    output = []
+    assert main(["microphone"], settings=Settings(), engine=engine, recorder=FakeRecorder(),
+                read=lambda _: "", write=output.append) == 0
+    assert "Transcript: " + sentence in output
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_elapsed_display_and_enter_control():
+    class PollingRecorder(FakeRecorder):
+        def record(self, seconds, control=None):
+            assert control() == "stop"
+            return super().record(seconds, control)
+    ticks = iter([10, 12])
+    output = []
+    assert main(["microphone"], settings=Settings(), engine=FakeEngine(), recorder=PollingRecorder(),
+                read=lambda _: "", write=output.append, control=lambda: "stop",
+                clock=lambda: next(ticks)) == 0
+    assert "Recording elapsed: 2s / 120s" in output
+
+
+def test_silence_option_is_passed_to_owned_recorder(monkeypatch):
+    import app.stt.cli as cli
+    configured = []
+    def factory(settings):
+        configured.append(settings)
+        return FakeRecorder()
+    monkeypatch.setattr(cli, "SoundDeviceRecorder", factory)
+    assert main(["microphone", "--silence-seconds", "3"], settings=Settings(),
+                engine=FakeEngine(), read=lambda _: "", write=lambda _: None) == 0
+    assert configured[0].audio_silence_stop_enabled
+    assert configured[0].audio_silence_duration_seconds == 3
+
+
+@pytest.mark.parametrize("value", ["0", "nan", "31"])
+def test_invalid_silence_option_never_captures(value):
+    recorder = FakeRecorder()
+    assert main(["microphone", "--silence-seconds", value], settings=Settings(),
+                engine=FakeEngine(), recorder=recorder, write=lambda _: None) == 2
+    assert recorder.calls == []

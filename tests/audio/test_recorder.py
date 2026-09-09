@@ -219,3 +219,79 @@ def test_direct_cancel_and_stop_methods():
     def stop():
         recorder.stop()
     assert recorder.record(1, stop).status == "succeeded"
+
+
+class ScriptedBackend(FakeBackend):
+    """Deliver synthetic blocks without PortAudio or any actual device."""
+    def __init__(self, levels):
+        super().__init__(frames=0)
+        self.levels = levels
+
+    def start(self):
+        self.calls.append("start")
+        for level in self.levels:
+            pcm = np.full((1600, self.options["channels"]), level, dtype=np.int16)
+            try:
+                self.options["callback"](pcm.tobytes(), 1600, None, False)
+            except self.CallbackStop:
+                break
+
+
+def test_flexible_capture_until_terminal_enter(monkeypatch):
+    import app.audio.cli as cli
+    fake_keys = SimpleNamespace(kbhit=lambda: True, getwch=lambda: "\r")
+    monkeypatch.setitem(sys.modules, "msvcrt", fake_keys)
+    monkeypatch.setattr(cli, "os", SimpleNamespace(name="nt"))
+    backend = FakeBackend()
+    result = SoundDeviceRecorder(Settings(), backend=backend).record(control=cli.terminal_control)
+    assert result.status == "succeeded" and result.duration == .01
+    assert backend.calls[-2:] == ["abort", "close"]
+
+
+def test_flexible_safety_deadline():
+    ticks = iter([0, 1])
+    backend = FakeBackend()
+    result = SoundDeviceRecorder(Settings(audio_max_duration_seconds=.5),
+                                 backend=backend, clock=lambda: next(ticks)).record()
+    assert result.status == "succeeded"
+    assert backend.calls[-2:] == ["abort", "close"]
+
+
+def test_flexible_safety_frame_limit():
+    backend = FakeBackend(frames=32000)
+    result = SoundDeviceRecorder(Settings(audio_max_duration_seconds=.5), backend=backend).record()
+    assert result.duration == .5 and len(result.samples) == 8000
+
+
+def test_optional_silence_stops_after_speech_and_retains_tail():
+    settings = Settings(audio_silence_stop_enabled=True, audio_silence_duration_seconds=.25)
+    backend = ScriptedBackend([1000, 0, 0, 0, 1000])
+    result = SoundDeviceRecorder(settings, backend=backend).record()
+    assert result.duration == .4
+    assert len(result.samples) == 6400
+    assert np.all(result.samples[-1600:] == 0)
+
+
+def test_silence_disabled_preserves_pauses_and_final_words():
+    backend = ScriptedBackend([1000, 0, 0, 0, 1000])
+    result = SoundDeviceRecorder(Settings(), backend=backend).record(control=lambda: "stop")
+    assert result.duration == .5
+    assert np.all(result.samples[-1600:] == 1000)
+
+
+def test_silence_resets_on_speech():
+    settings = Settings(audio_silence_stop_enabled=True, audio_silence_duration_seconds=.25)
+    result = SoundDeviceRecorder(settings, backend=ScriptedBackend(
+        [1000, 0, 0, 1000, 0, 0, 0, 1000])).record()
+    assert result.duration == .7
+
+
+def test_initial_silence_waits_for_enter_or_safety():
+    settings = Settings(audio_silence_stop_enabled=True, audio_silence_duration_seconds=.25)
+    result = SoundDeviceRecorder(settings, backend=ScriptedBackend([0] * 5)).record(control=lambda: "stop")
+    assert result.duration == .5
+
+
+def test_flexible_cancel_discards_all_samples():
+    result = SoundDeviceRecorder(Settings(), backend=FakeBackend()).record(control=lambda: "cancel")
+    assert result.status == "cancelled" and result.samples is None

@@ -65,10 +65,10 @@ class FasterWhisperEngine:
         with self._guard:
             self._model = None
 
-    def failure(self, request, code, elapsed=0.0):
+    def failure(self, request, code, elapsed=0.0, **timings):
         return TranscriptionResult(
             audio_id=request.audio_id, execution_correlation_id=request.execution_correlation_id,
-            language=request.language, processing_duration=elapsed,
+            language=request.language, processing_duration=elapsed, **timings,
             source_audio_duration=request.audio.duration,
             model_name=self.settings.whisper_model, device=self.settings.whisper_device,
             compute_type=self.settings.whisper_compute_type,
@@ -108,28 +108,43 @@ class FasterWhisperEngine:
         started = self._clock()
         stream = None
         stage = "prepare"
+        model_load_duration = 0.0
+        inference_duration = 0.0
+        load_started = None
+        inference_started = None
+        cold_start = None
         try:
             with quiet_backend():
                 samples = self._prepare_audio(request.audio)
                 if cancel is not None and cancel.is_set():
                     raise TranscriptionError(Code.CANCELLED)
-                if self._model is None:
+                cold_start = self._model is None
+                if cold_start:
                     stage = "load"
+                    load_started = self._clock()
                     self._model = self._factory(
                         self.settings.whisper_model, device=self.settings.whisper_device,
                         compute_type=self.settings.whisper_compute_type,
                         download_root=str(self.settings.stt_model_dir),
                         local_files_only=self.settings.stt_local_files_only,
                     )
+                    model_load_duration = max(0.0, self._clock() - load_started)
+                    load_started = None
                 if cancel is not None and cancel.is_set():
                     raise TranscriptionError(Code.CANCELLED)
                 stage = "transcribe"
                 if request.language is not None and request.language not in self._model.supported_languages:
                     raise TranscriptionError(Code.UNSUPPORTED_LANGUAGE)
+                inference_started = self._clock()
                 stream, info = self._model.transcribe(
                     samples, language=request.language, vad_filter=self.settings.stt_vad_filter,
                     word_timestamps=self.settings.stt_word_timestamps,
                     beam_size=self.settings.stt_beam_size,
+                    temperature=self.settings.stt_temperature,
+                    vad_parameters={"min_silence_duration_ms": self.settings.stt_vad_min_silence_duration_ms,
+                                    "speech_pad_ms": 400},
+                    initial_prompt=self.settings.stt_initial_prompt or None,
+                    hotwords=self.settings.stt_hotwords or None,
                 )
                 segments = []
                 for segment in stream:
@@ -144,6 +159,8 @@ class FasterWhisperEngine:
                     ))
                 if cancel is not None and cancel.is_set():
                     raise TranscriptionError(Code.CANCELLED)
+                inference_duration = max(0.0, self._clock() - inference_started)
+                inference_started = None
                 segments.sort(key=lambda segment: (segment.start, segment.end))
                 return TranscriptionResult(
                     audio_id=request.audio_id, execution_correlation_id=request.execution_correlation_id,
@@ -152,20 +169,30 @@ class FasterWhisperEngine:
                     # Explicit-language probability=1 is a backend placeholder, not detection.
                     language_probability=info.language_probability if request.language is None else None,
                     segments=tuple(segments), processing_duration=max(0.0, self._clock() - started),
-                    source_audio_duration=request.audio.duration,
+                    model_load_duration=model_load_duration, inference_duration=inference_duration,
+                    cold_start=cold_start, source_audio_duration=request.audio.duration,
                     model_name=self.settings.whisper_model, device=self.settings.whisper_device,
                     compute_type=self.settings.whisper_compute_type, status=TranscriptionStatus.SUCCEEDED,
                 )
-        except KeyboardInterrupt:
-            return self.failure(request, Code.CANCELLED, max(0.0, self._clock() - started))
-        except Exception as error:
-            if isinstance(error, TranscriptionError):
+        except (Exception, KeyboardInterrupt) as error:
+            if isinstance(error, KeyboardInterrupt):
+                code = Code.CANCELLED
+            elif isinstance(error, TranscriptionError):
                 code = error.code
             elif isinstance(error, PermissionError):
                 code = Code.PERMISSION_DENIED
             else:
                 code = Code.MODEL_UNAVAILABLE if stage == "load" else Code.TRANSCRIPTION_FAILED
-            return self.failure(request, code, max(0.0, self._clock() - started))
+            ended = self._clock()
+            if load_started is not None:
+                model_load_duration = max(0.0, ended - load_started)
+            if inference_started is not None:
+                inference_duration = max(0.0, ended - inference_started)
+            return self.failure(
+                request, code, max(0.0, ended - started),
+                model_load_duration=model_load_duration, inference_duration=inference_duration,
+                cold_start=cold_start,
+            )
         finally:
             try:
                 if stream is not None and hasattr(stream, "close"):

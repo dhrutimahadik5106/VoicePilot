@@ -54,6 +54,8 @@ class SoundDeviceRecorder:
         stream = None
         chunks = []
         frames_captured = 0
+        silent_frames = 0
+        heard_speech = False
         max_frames = int(duration * self.format.sample_rate)
         done = Event()
         failure = None
@@ -69,7 +71,7 @@ class SoundDeviceRecorder:
                                          dtype=self.format.dtype)
 
             def callback(indata, frames, time_info, status):
-                nonlocal frames_captured, failure
+                nonlocal frames_captured, failure, silent_frames, heard_speech
                 if self._stop.is_set():
                     done.set()
                     raise backend.CallbackStop
@@ -82,6 +84,16 @@ class SoundDeviceRecorder:
                         pcm = np.frombuffer(indata, dtype=np.int16).reshape(frames, self.format.channels)
                         chunks.append(pcm[:count].copy())
                         frames_captured += count
+                        if self.settings.audio_silence_stop_enabled and count:
+                            level = pcm[:count].astype(np.float32) / 32768.0
+                            rms = float(np.sqrt(np.mean(level * level)))
+                            if rms >= self.settings.audio_silence_threshold:
+                                heard_speech = True
+                                silent_frames = 0
+                            elif heard_speech:
+                                silent_frames += count
+                                if silent_frames >= self.settings.audio_silence_duration_seconds * self.format.sample_rate:
+                                    done.set()
                         if frames_captured >= max_frames:
                             done.set()
                 except Exception:

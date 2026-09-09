@@ -19,7 +19,7 @@ def test_lazy_load_cache_latency_order_and_options():
     def factory(*args, **kwargs):
         calls.append((args, kwargs))
         return model
-    ticks = iter([10, 10.5, 20, 20.25])
+    ticks = iter([10, 10.1, 10.3, 10.3, 10.5, 10.5, 20, 20.05, 20.25, 20.25])
     engine = FasterWhisperEngine(Settings(), model_factory=factory, clock=lambda: next(ticks))
     assert calls == []
     request = TranscriptionRequest(audio=audio())
@@ -30,7 +30,11 @@ def test_lazy_load_cache_latency_order_and_options():
     assert model.closed
     samples, kwargs = model.calls[0]
     assert samples.shape == (16000,) and samples.dtype == np.float32
-    assert kwargs == dict(language=None, vad_filter=True, word_timestamps=False, beam_size=5)
+    assert kwargs == dict(
+        language=None, vad_filter=True, word_timestamps=False, beam_size=5,
+        temperature=0.0, vad_parameters={"min_silence_duration_ms": 1000, "speech_pad_ms": 400},
+        initial_prompt=Settings().stt_initial_prompt, hotwords=Settings().stt_hotwords,
+    )
     assert calls[0][1] == dict(device="cpu", compute_type="int8", download_root=str(Settings().stt_model_dir), local_files_only=False)
     engine.transcribe(request)
     assert len(calls) == 1
@@ -157,3 +161,61 @@ def test_offline_loader_blocks_missing_tokenizer(monkeypatch, tmp_path):
     (tmp_path / "tokenizer.json").write_text("{}")
     load_model("base", device="cpu", compute_type="int8", download_root="models/whisper", local_files_only=True)
     assert loaded[0][1]["local_files_only"] is True
+
+
+def test_raw_normalized_preserve_domain_and_arbitrary_words():
+    original = " Play Voice Pilot on Spotify, not Hey VoicePilot. WhatsApp Chrome YouTube Dhruti "
+    model = FakeModel([segment(original)])
+    result = FasterWhisperEngine(Settings(), model_factory=lambda *a, **k: model).transcribe(
+        TranscriptionRequest(audio=audio()))
+    assert result.raw_transcript == original
+    assert result.normalized_transcript == original.strip()
+    assert result.normalized_transcript.startswith("Play Voice Pilot")
+    assert result.model_dump()["raw_transcript"] == original
+    assert "Play Voice" not in repr(result)
+    options = model.calls[0][1]
+    for term in ("VoicePilot", "Spotify", "WhatsApp", "Chrome", "YouTube", "Dhruti"):
+        assert term in options["hotwords"] and term in options["initial_prompt"]
+
+
+def test_cold_warm_timing_excludes_load_from_inference():
+    # Cold total 105s: 100s model initialization/download, 3s inference, 2s other.
+    # Warm total 4s: zero load, 3s inference, 1s other. Synthetic, not a benchmark.
+    ticks = iter([0, 1, 101, 101, 104, 105, 200, 201, 204, 204])
+    calls = []
+    model = FakeModel()
+    engine = FasterWhisperEngine(Settings(), model_factory=lambda *a, **k: calls.append(1) or model,
+                                 clock=lambda: next(ticks))
+    request = TranscriptionRequest(audio=audio())
+    cold = engine.transcribe(request)
+    warm = engine.transcribe(request)
+    assert cold.cold_start is True
+    assert (cold.model_load_duration, cold.inference_duration, cold.total_processing_duration) == (100, 3, 105)
+    assert cold.real_time_factor == 105
+    assert warm.cold_start is False
+    assert (warm.model_load_duration, warm.inference_duration, warm.processing_duration) == (0, 3, 4)
+    assert len(calls) == 1
+
+
+def test_vad_temperature_prompt_overrides():
+    settings = Settings(stt_temperature=.2, stt_vad_min_silence_duration_ms=1500,
+                        stt_beam_size=3, stt_initial_prompt="", stt_hotwords="",
+                        stt_vad_filter=False, stt_word_timestamps=True)
+    model = FakeModel()
+    FasterWhisperEngine(settings, model_factory=lambda *a, **k: model).transcribe(TranscriptionRequest(audio=audio()))
+    options = model.calls[0][1]
+    assert options["temperature"] == .2 and options["beam_size"] == 3
+    assert options["vad_parameters"] == {"min_silence_duration_ms": 1500, "speech_pad_ms": 400}
+    assert not options["vad_filter"] and options["word_timestamps"]
+    assert options["initial_prompt"] is None and options["hotwords"] is None
+
+
+def test_failed_load_timing_is_not_inference():
+    ticks = iter([0, 1, 11])
+    def fail(*args, **kwargs):
+        raise RuntimeError("private load failure")
+    result = FasterWhisperEngine(Settings(), model_factory=fail,
+        clock=lambda: next(ticks)).transcribe(TranscriptionRequest(audio=audio()))
+    assert result.error_code == Code.MODEL_UNAVAILABLE and result.cold_start
+    assert result.model_load_duration == 10 and result.inference_duration == 0
+    assert result.processing_duration == 11

@@ -32,16 +32,21 @@ def test_safe_defaults(tmp_path):
         "log_level": "INFO", "data_dir": Path("data"), "log_dir": Path("logs"),
         "llm_provider": "disabled", "ollama_base_url": "http://localhost:11434",
         "wake_word_enabled": False, "speaker_verification_enabled": False,
-        "whisper_model": "base", "whisper_device": "cpu",
+        "whisper_model": "small", "whisper_device": "cpu",
         "whisper_compute_type": "int8", "max_plan_steps": 10,
         "max_retries": 2, "task_timeout_seconds": 60.0,
         "audio_sample_rate": 16000, "audio_channels": 1, "audio_dtype": "int16",
-        "audio_block_size": 1024, "audio_max_duration_seconds": 30.0,
+        "audio_block_size": 1024, "audio_max_duration_seconds": 120.0,
         "audio_input_device": None, "recordings_dir": Path("recordings"),
         "recording_persistence_enabled": False,
         "stt_language": None, "stt_vad_filter": True, "stt_word_timestamps": False,
         "stt_beam_size": 5, "stt_max_duration_seconds": 120.0,
         "stt_model_dir": Path("models/whisper"), "stt_local_files_only": False,
+        "audio_silence_stop_enabled": False, "audio_silence_duration_seconds": 2.0,
+        "audio_silence_threshold": 0.01, "stt_temperature": 0.0,
+        "stt_vad_min_silence_duration_ms": 1000,
+        "stt_initial_prompt": "VoicePilot, Spotify, WhatsApp, Chrome, YouTube, Dhruti.",
+        "stt_hotwords": "VoicePilot Spotify WhatsApp Chrome YouTube Dhruti",
     }
     assert list(tmp_path.iterdir()) == []
 

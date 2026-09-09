@@ -54,7 +54,7 @@ class Settings(BaseSettings):
     ollama_base_url: str = "http://localhost:11434"
     wake_word_enabled: bool = False
     speaker_verification_enabled: bool = False
-    whisper_model: Literal["tiny", "tiny.en", "base", "base.en", "small", "small.en", "medium", "medium.en", "large", "large-v1", "large-v2", "large-v3", "large-v3-turbo", "turbo", "distil-small.en", "distil-medium.en", "distil-large-v2", "distil-large-v3", "distil-large-v3.5"] = "base"
+    whisper_model: Literal["tiny", "tiny.en", "base", "base.en", "small", "small.en", "medium", "medium.en", "large", "large-v1", "large-v2", "large-v3", "large-v3-turbo", "turbo", "distil-small.en", "distil-medium.en", "distil-large-v2", "distil-large-v3", "distil-large-v3.5"] = "small"
     whisper_device: Literal["cpu", "cuda"] = "cpu"
     whisper_compute_type: Literal["int8", "float32", "float16", "int8_float16", "int8_float32"] = "int8"
     max_plan_steps: int = Field(default=10, ge=1, le=100)
@@ -65,7 +65,7 @@ class Settings(BaseSettings):
     audio_channels: Literal[1, 2] = 1
     audio_dtype: Literal["int16"] = "int16"
     audio_block_size: int = Field(default=1024, ge=64, le=4096)
-    audio_max_duration_seconds: float = Field(default=30.0, ge=0.1, le=120, allow_inf_nan=False)
+    audio_max_duration_seconds: float = Field(default=120.0, ge=0.1, le=120, allow_inf_nan=False)
     audio_input_device: int | str | None = None
     recordings_dir: Path = Path("recordings")
     recording_persistence_enabled: bool = False
@@ -140,6 +140,30 @@ class Settings(BaseSettings):
         # Reuse the lexical path policy without performing filesystem access.
         checked = validate_recordings_dir("/".join(["recordings", *parts[1:]]))
         return Path("models", *checked.parts[1:])
+
+
+    audio_silence_stop_enabled: bool = False
+    audio_silence_duration_seconds: float = Field(default=2.0, ge=0.25, le=30, allow_inf_nan=False)
+    audio_silence_threshold: float = Field(default=0.01, gt=0, le=0.25, allow_inf_nan=False)
+    stt_temperature: float = Field(default=0.0, ge=0, le=1, allow_inf_nan=False)
+    stt_vad_min_silence_duration_ms: int = Field(default=1000, ge=100, le=5000)
+    stt_initial_prompt: str = Field(default="VoicePilot, Spotify, WhatsApp, Chrome, YouTube, Dhruti.", max_length=500, repr=False)
+    stt_hotwords: str = Field(default="VoicePilot Spotify WhatsApp Chrome YouTube Dhruti", max_length=300, repr=False)
+
+    @field_validator("audio_silence_duration_seconds", "audio_silence_threshold",
+                     "stt_temperature", "stt_vad_min_silence_duration_ms", mode="before")
+    @classmethod
+    def validate_refinement_number(cls, value):
+        if isinstance(value, bool):
+            raise ValueError("Numeric settings cannot be boolean")
+        return value
+
+    @field_validator("stt_initial_prompt", "stt_hotwords")
+    @classmethod
+    def validate_domain_text(cls, value):
+        if any(ord(char) < 32 or ord(char) == 127 for char in value):
+            raise ValueError("Vocabulary hints must contain printable text")
+        return value
 
 
 @lru_cache(maxsize=1)

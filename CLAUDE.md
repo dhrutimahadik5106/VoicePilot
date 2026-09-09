@@ -24,5 +24,21 @@
 - Declare only direct dependencies; do not use pip freeze for project metadata.
 - Run complete and phase-specific pytest, import/settings smoke tests, diff and
   ignore checks. Stop on failed baseline or repository/authentication safeguards.
-- Phase 2 hardware is user-verified. Phase 3 STT manual verification is pending.
+- Phase 2 hardware and initial Phase 3 transcription are user-tested; accuracy
+  mistakes and a slow first run were reported. Refinement hardware tests are pending.
   Never fabricate accuracy, WER, benchmarks or hardware/model verification.
+
+- Phase 3 refinements permit optional fixed duration, Enter-to-stop capture,
+  optional silence stop, a configurable 120s safety maximum, and explicit sessions.
+- Never remove the finite recording cap or save audio automatically.
+- Keep small/cpu/int8 as the default for this 16 GB laptop; no medium/large or GPU
+  migration is authorized.
+- Vocabulary is a decoding hint, not permission to rewrite arbitrary speech.
+  Preserve raw and normalized transcript forms; normalization only joins/strips
+  segment-boundary whitespace and never substitutes recognized words.
+- Separate model-load/download time from inference. Label cold/warm only by
+  whether the engine constructed/reused its model. Do not claim measured speedups
+  from fake-clock tests.
+- Reuse the model within a session; request fresh capture consent for each turn.
+- Document silence/VAD cutoff risks, multilingual limitations and uncertain
+  accuracy. Do not automatically run real microphone/model/performance tests.
