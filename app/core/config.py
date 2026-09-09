@@ -1,4 +1,5 @@
 """Validated configuration without filesystem or integration side effects."""
+import re
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
@@ -23,6 +24,21 @@ def validate_recordings_dir(value) -> Path:
     return Path(*parts)
 
 
+
+def normalize_stt_language(value) -> str | None:
+    """Normalize a language code; actual model support is checked at transcription."""
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise ValueError("Invalid language code")
+    value = value.strip().lower()
+    if value == "auto":
+        return None
+    if not re.fullmatch(r"[a-z]{2,3}", value):
+        raise ValueError("Invalid language code")
+    return value
+
+
 class Settings(BaseSettings):
     """Load VOICEPILOT_ environment variables; .env loading is deliberately opt-in."""
 
@@ -38,9 +54,9 @@ class Settings(BaseSettings):
     ollama_base_url: str = "http://localhost:11434"
     wake_word_enabled: bool = False
     speaker_verification_enabled: bool = False
-    whisper_model: str = "base"
-    whisper_device: str = "cpu"
-    whisper_compute_type: str = "int8"
+    whisper_model: Literal["tiny", "tiny.en", "base", "base.en", "small", "small.en", "medium", "medium.en", "large", "large-v1", "large-v2", "large-v3", "large-v3-turbo", "turbo", "distil-small.en", "distil-medium.en", "distil-large-v2", "distil-large-v3", "distil-large-v3.5"] = "base"
+    whisper_device: Literal["cpu", "cuda"] = "cpu"
+    whisper_compute_type: Literal["int8", "float32", "float16", "int8_float16", "int8_float32"] = "int8"
     max_plan_steps: int = Field(default=10, ge=1, le=100)
     max_retries: int = Field(default=2, ge=0, le=10)
     task_timeout_seconds: float = Field(default=60.0, gt=0, le=3600, allow_inf_nan=False)
@@ -92,6 +108,38 @@ class Settings(BaseSettings):
     @classmethod
     def validate_recording_directory(cls, value):
         return validate_recordings_dir(value)
+
+
+    stt_language: str | None = None
+    stt_vad_filter: bool = True
+    stt_word_timestamps: bool = False
+    stt_beam_size: int = Field(default=5, ge=1, le=10)
+    stt_max_duration_seconds: float = Field(default=120.0, ge=0.1, le=120, allow_inf_nan=False)
+    stt_model_dir: Path = Path("models/whisper")
+    stt_local_files_only: bool = False
+
+    @field_validator("stt_language", mode="before")
+    @classmethod
+    def validate_stt_language(cls, value):
+        return normalize_stt_language(value)
+
+    @field_validator("stt_beam_size", "stt_max_duration_seconds", mode="before")
+    @classmethod
+    def validate_stt_number(cls, value):
+        if isinstance(value, bool):
+            raise ValueError("STT limits must be numeric")
+        return value
+
+    @field_validator("stt_model_dir", mode="before")
+    @classmethod
+    def validate_model_directory(cls, value):
+        text = str(value).replace("\\", "/")
+        parts = text.split("/")
+        if not parts or parts[0] != "models":
+            raise ValueError("Model cache must be within models")
+        # Reuse the lexical path policy without performing filesystem access.
+        checked = validate_recordings_dir("/".join(["recordings", *parts[1:]]))
+        return Path("models", *checked.parts[1:])
 
 
 @lru_cache(maxsize=1)

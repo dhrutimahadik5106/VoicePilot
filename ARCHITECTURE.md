@@ -1,37 +1,47 @@
 # Architecture
 
-Implemented: Phase 1 foundation and Phase 2 explicit audio input, verified using
-mock-based automated tests. Hardware capture is not manually verified.
+Implemented: Phase 1 foundation, Phase 2 explicit audio input, and Phase 3 local
+speech-to-text. Phase 2 hardware checks succeeded per the user: device listing,
+in-memory recording, WAV saving, cancellation and audio quality.
+Phase 3 is automated-tested with fakes; real transcription remains unverified.
 
 Planned full pipeline:
 
 Perceive ? Authenticate ? Transcribe ? Understand ? Retrieve Context ? Plan ?
 Risk Check ? Execute ? Observe ? Verify ? Recover ? Respond ? Update Memory
 
-Only the audio-input portion of Perceive exists. All other pipeline stages remain
-planned, not implemented.
+Only audio input within Perceive and local Transcribe are implemented.
+Authenticate and all later reasoning/action/history components remain planned.
+The STT CLI demonstrates transcription without an authenticated execution path;
+recognized text is displayed only and never executed.
 
-Current foundation: app/core/config.py provides bounded environment configuration,
-app/core/errors.py shared exceptions, and app/core/logging.py safe console events.
+Foundation: app/core/config.py provides side-effect-free validated configuration;
+errors.py shared exceptions; logging.py safe fixed operational events.
 
-Current audio modules:
-- models.py: validated format, owned in-memory PCM, device metadata and results.
-- contracts.py: AudioRecorder protocol, control callback and safe error codes.
-- devices.py: explicit input-only discovery and exact device selection.
-- recorder.py: lazily loaded sounddevice adapter, bounded callback capture,
-  state transitions, cancellation and abort/close cleanup.
-- wav.py: explicitly enabled WAV export confined to the ignored recordings tree.
-- cli.py: foreground terminal start, stop, cancel, device listing and optional export.
+Audio: app/audio provides the AudioRecorder protocol, typed PCM/results,
+explicit discovery, bounded sounddevice capture, foreground terminal controls,
+and separately requested WAV export. Capture remains in memory by default.
 
-Importing audio modules or constructing the recorder does not load sounddevice,
-enumerate devices or open streams. The synchronous record call opens one stream
-only after a deliberate caller action. The PortAudio callback accumulates at most
-the configured number of frames. The caller polls stop/cancel and a monotonic
-deadline. Streams are aborted/closed before assembling the result. Cancellation
-and failures return no samples. Capture never writes files.
+STT:
+- contracts.py: replaceable SpeechToTextEngine protocol.
+- models.py: requests, segments, optional word timestamps, safe errors and results.
+- service.py: validates one selected PCM WAV or accepts RecordedAudio; checks
+  bounds and prepares file PCM without scanning folders or persisting audio.
+- faster_whisper_engine.py: lazy model loading, mono/16 kHz conversion,
+  VAD/language/word options, segment consumption, timing and controlled errors.
+- cli.py: explicit file transcription or Phase 2 capture followed by in-memory STT.
 
-WAV export is independent of capture and requires explicit persistence permission.
-The CLI also requires --save; configuration alone never triggers saving.
-Tests replace the backend or recorder and use pytest temporary directories for
-exports. Future integrations require separate phase approval and security review.
-Configuration flags alone never establish identity or authorize computer actions.
+Model construction, downloads and device access never occur during module import
+or settings loading. An explicit transcription can download model assets into
+models/whisper; recognition itself uses local computation and never uploads audio.
+Offline mode uses cached files only and rejects incomplete tokenizer snapshots.
+The model is reused within the engine lifetime and released by dropping its
+reference on close. Segment generators and in-memory WAV buffers are closed.
+
+Results include correlation-ready UUIDs and timestamps but create no history.
+Audio and transcripts never enter ordinary logs. CLI transcript display is
+intentional user-facing output, not a logging or command-execution channel.
+
+Tests inject fake models and capture adapters and generate WAVs in temporary
+directories. Actual resampling/model compatibility, accuracy and latency require
+manual STT checks. All future pipeline work requires separate phase approval.

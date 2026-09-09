@@ -1,26 +1,28 @@
 # Project working rules
 
-- Require Python 3.12; preserve the approved Python 3.12.10 interpreter.
-- Preserve venv. Never delete or recreate it. Explicitly use
-  venv\Scripts\python.exe for every Python or pip command, without activation.
-- Work only in approved phases. Phase 1 foundation and Phase 2 audio input are
-  approved; never implement Phase 3 or later without approval.
-- Keep direct dependencies minimal. No installation, removal or upgrades without
-  authorization. Do not use pip freeze as project dependency metadata.
-- Never commit credentials or create a real .env as part of these phases.
-- Microphone capture requires deliberate user action. No continuous listening,
-  automatic recording or hardware access during imports/settings construction.
-- Never log audio, secrets, embeddings, message contents, sensitive paths or file
-  contents. Use safe error codes, not backend exception text.
-- Keep recordings in memory by default. Cancellation discards captured audio.
-  Persistence requires an explicit export request and permission.
-- Future speaker enrollment requires separate explicit consent.
-- Automated audio tests must use fakes/mocks and pytest temporary directories.
-  Never access hardware, network, personal files, applications or system settings.
-- Detect installed packages through metadata. Keep sounddevice imports lazy.
-- Run complete pytest and audio tests, import/settings smoke tests, diff checks,
-  and ignore checks. Keep manual hardware tests separate and user-executed.
-- Do not claim hardware works until the user verifies it.
-- No wake word, speaker verification, STT, LLM, LangGraph, computer control,
-  browser automation, screen perception, memory, API or GUI in Phase 2.
-- Enforce identity and permission checks before any future action execution.
+- Preserve Python 3.12.10 and the existing venv. Explicitly use
+  venv\Scripts\python.exe for every Python or pip command; do not rely on activation.
+- Never install, remove or upgrade packages without authorization.
+- Phases 1-3 are approved: foundation, explicit audio input and local STT.
+  Never implement Phase 4 or later without separate approval.
+- No wake word, speaker verification, LLM reasoning, LangGraph, computer control,
+  command execution, browser/screen automation, history database, API or frontend.
+- Treat recognized speech as text only. It must never execute commands.
+- Microphone capture requires deliberate action. No continuous listening,
+  startup recording or hardware/model access during imports/settings loading.
+- Keep audio/transcripts in memory by default. STT must not persist recordings.
+  Cancellation discards results; future speaker enrollment needs separate consent.
+- Never log raw audio, transcripts, embeddings, credentials, sensitive paths or
+  internal exception text. Use safe codes and suppress backend transcript logging.
+- Recognition runs locally. Only an explicit real transcription may download model
+  assets. Document first-use downloads and the cached-files-only setting.
+- Do not automatically perform manual microphone, download or transcription tests.
+- Automated STT tests must use fakes/mocks; no real model load, download, network,
+  hardware, applications, personal-file access or system-setting changes.
+- Generate WAV fixtures only in pytest temporary directories.
+- Preserve ignored recordings/models and never create a real .env or credentials.
+- Declare only direct dependencies; do not use pip freeze for project metadata.
+- Run complete and phase-specific pytest, import/settings smoke tests, diff and
+  ignore checks. Stop on failed baseline or repository/authentication safeguards.
+- Phase 2 hardware is user-verified. Phase 3 STT manual verification is pending.
+  Never fabricate accuracy, WER, benchmarks or hardware/model verification.

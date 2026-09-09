@@ -1,13 +1,14 @@
 [project]
 name = "voicepilot"
 version = "0.1.0"
-description = "VoicePilot foundation and explicit audio input"
+description = "VoicePilot audio input and local speech-to-text"
 requires-python = ">=3.12,<3.13"
 dependencies = [
     "pydantic>=2.13,<3",
     "pydantic-settings>=2.15,<3",
     "numpy>=2.5,<3",
     "sounddevice>=0.5.6,<0.6",
+    "faster-whisper>=1.2.1,<2",
 ]
 
 [project.optional-dependencies]

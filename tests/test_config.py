@@ -39,6 +39,9 @@ def test_safe_defaults(tmp_path):
         "audio_block_size": 1024, "audio_max_duration_seconds": 30.0,
         "audio_input_device": None, "recordings_dir": Path("recordings"),
         "recording_persistence_enabled": False,
+        "stt_language": None, "stt_vad_filter": True, "stt_word_timestamps": False,
+        "stt_beam_size": 5, "stt_max_duration_seconds": 120.0,
+        "stt_model_dir": Path("models/whisper"), "stt_local_files_only": False,
     }
     assert list(tmp_path.iterdir()) == []
 
