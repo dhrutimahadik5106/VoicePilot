@@ -1,0 +1,17 @@
+[project]
+name = "voicepilot"
+version = "0.1.0"
+description = "VoicePilot Phase 1 project foundation"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "pydantic>=2.13,<3",
+    "pydantic-settings>=2.15,<3",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=9.1,<10"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-ra"

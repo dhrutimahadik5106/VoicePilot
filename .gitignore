@@ -1,0 +1,54 @@
+# Environments and credentials
+venv/
+.venv/
+env/
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.secrets
+secrets/
+credentials*.json
+# Python and tool caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+.tox/
+.nox/
+.mypy_cache/
+.pyright/
+.ruff_cache/
+.hypothesis/
+# Editors and operating systems
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+Desktop.ini
+# Build outputs
+build/
+dist/
+*.egg-info/
+*.egg
+# Sensitive and large runtime artifacts
+logs/
+*.log
+recordings/
+screenshots/
+models/
+data/voice_profiles/
+data/chroma/
+experiments/raw/
+*.npy
+*.onnx
+*.pt
+*.pth
