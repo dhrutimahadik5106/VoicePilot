@@ -14,6 +14,7 @@ DATA_DIR = Path(__file__).resolve().parents[2] / "data" / "commands"
 
 def normalize(text: str) -> str:
     text = unicodedata.normalize("NFC", text).casefold().replace("’", "'")
+    text = text.replace("\u200b", " ").replace("\ufeff", " ")
     # Keep apostrophes for negation; keep letters/combining marks in Indic scripts.
     text = "".join(" " if unicodedata.category(char).startswith("P") and char != "'" else char for char in text)
     return " ".join(text.split())

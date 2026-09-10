@@ -31,3 +31,10 @@ def test_bad_dataset_returns_safe_error(tmp_path):
     output = []
     assert main(["evaluate", "--dataset", str(tmp_path / "missing.jsonl")], write=output.append) == 2
     assert json.loads(output[0]) == {"error": "invalid_command_input_or_dataset"}
+
+def test_cli_preserves_received_title_spacing():
+    for raw in ("Hey Voice Pilot, open Spotify and play Taare Zameen Par.",
+                "Hey Voice Pilot, open Spotify and play TaareZameen Par."):
+        output = []
+        assert main(["resolve", raw], write=output.append) == 0
+        assert json.loads(output[0])["raw_transcript"] == raw

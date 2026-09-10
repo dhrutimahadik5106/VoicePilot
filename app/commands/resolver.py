@@ -82,7 +82,7 @@ class CommandResolver:
             return unknown("empty_transcript")
         if _NEGATION.search(text):
             return unknown("negated_command")
-        if _COMPOUND.search(text) or any(token in raw for token in (";", "&", "|")) or "\n" in raw.strip():
+        if any(token in raw for token in (";", "&", "|")) or "\n" in raw.strip():
             return unknown("compound_command")
         # Remove only a recognized, unambiguous assistant invocation from matching.
         assistant_names = set()
@@ -100,6 +100,31 @@ class CommandResolver:
             if text.startswith(polite):
                 text = text[len(polite):]
                 break
+        workflow = False
+        observed_address = False
+        workflow_text = text
+        # Only the reported address error before a complete Spotify/play workflow.
+        for name in sorted(assistant_names, key=len, reverse=True):
+            prefix = "play " + name + " "
+            if workflow_text.startswith(prefix):
+                workflow_text = workflow_text[len(prefix):]
+                observed_address = True
+                break
+        coordinated = re.fullmatch(r"open (.+?) and play(?: (.+))?", workflow_text)
+        if coordinated:
+            app_text, media_text = coordinated.groups()
+            apps = self._entity_candidates(app_text, "application")
+            exact_apps = [a for a in apps if a.match_type != "fuzzy"]
+            if (len(exact_apps) == 1 and exact_apps[0].entity_id == "spotify"
+                    and not exact_apps[0].requires_confirmation
+                    and not _COMPOUND.search(media_text or "")):
+                workflow = True
+                text = "play" + (" " + media_text if media_text else "")
+                base["normalized_transcript"] = text
+        if _COMPOUND.search(text):
+            return unknown("compound_command")
+        if observed_address and not workflow:
+            return unknown("unsupported_command")
         matches = set()
         for intent, pattern, missing in self._patterns:
             match = pattern.fullmatch(text)
@@ -140,7 +165,11 @@ class CommandResolver:
                     reasons.append("observed_asr_error" if top.match_type == "observed_asr_error" else "alias_requires_confirmation")
             if score < self.config.acceptance_threshold:
                 reasons.append("low_heuristic_score")
+        if observed_address:
+            reasons.append("observed_address_form")
         confirm = bool(reasons)
+        if workflow:
+            reasons.append("spotify_play_workflow")
         return Resolution(
             **base, intent=intent, entities=entities, canonical_command=canonical_command(intent, entities),
             heuristic_score=score, candidates=candidates, status="needs_confirmation" if confirm else "resolved",

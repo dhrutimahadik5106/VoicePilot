@@ -210,3 +210,30 @@ metrics, and these results say nothing about raw ASR WER or acoustic robustness.
 See docs/datasets/command-dataset-v1.md for schema, score policy, metric
 denominators, consent, pseudonymization, speaker-disjoint future audio splits
 and limitations. No audio is collected in Phase 3B. No later phase is started.
+
+## Manual-validation refinement: Spotify play workflow
+
+Only the full English form open <exact Spotify alias> and play <media> is treated
+as one play_media proposal. Optional recognized assistant address prefixes are
+context. Other coordinators/actions, negation, shell separators and unknown/fuzzy
+application names remain blocked. Missing/unknown media remains unresolved.
+No proposal is executed. The normalized matching view of this workflow is
+play <media>; raw input is unchanged and no alias text is substituted into it.
+
+The user-observed prefix Play VoicePilot is recognized only before this complete
+workflow and requires confirmation as observed_address_form. Tharism Infer
+continues to carry observed_asr_error provenance and requires confirmation.
+
+Punctuation already became spaces, so reported punctuation-related token joining
+was not reproduced in the inspected code. Zero-width space/BOM separators now
+also become spaces; ordinary word boundaries are preserved. The CLI/resolver
+returns the exact string received, including already joined TaareZameen.
+Upstream STT concatenates raw segment text without inserted spaces and could
+produce that boundary across segments. Without original arguments/segments,
+application-versus-terminal-copy provenance cannot be determined. No raw STT
+text is rewritten by this fix.
+
+One seed annotation, open Spotify and play Taare Zameen Par, changes from rejected
+compound to the newly approved play_media workflow. No other labels, aliases,
+thresholds or unrelated rules were tuned. Metrics before/after therefore include
+this disclosed specification change; they remain synthetic development metrics.

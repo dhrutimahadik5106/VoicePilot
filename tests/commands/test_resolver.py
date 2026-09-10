@@ -58,7 +58,7 @@ def test_fuzzy_suggestion_never_silently_replaces_entity(resolver):
 
 @pytest.mark.parametrize("text", [
     "don't open Spotify", "do not open Spotify", "Spotify मत खोलो", "Spotify उघडू नको",
-    "open Spotify and play Taare Zameen Par", "Chrome उघड आणि आवाज वाढव",
+    "open Spotify and open Chrome", "Chrome उघड आणि आवाज वाढव",
     "open Spotify; mute", "open Spotify\nmute", "open Spotify && whoami",
     "open NebulaDesk", "play Unlisted Midnight Melody", "open Spotify Lite", "open",
     "tell me the weather", "",
@@ -81,3 +81,57 @@ def test_config_cannot_promote_observed_or_fuzzy_to_accepted(resolver):
 def test_oversize_text_rejected(resolver):
     with pytest.raises(ValueError):
         resolver.resolve("x" * 501)
+
+@pytest.mark.parametrize("raw,confirm", [
+    ("Play VoicePilot, Open, Spotify, and Play Tharism Infer.", True),
+    ("Hey Voice Pilot, open Spotify and play Taare Zameen Par.", False),
+    ("VoicePilot open Spotify and play Taare Zameen Par", False),
+    ("open Spotify and play Tharism Infer", True),
+])
+def test_manual_spotify_workflow(resolver, raw, confirm):
+    result = resolver.resolve(raw)
+    assert result.intent == "play_media"
+    assert result.canonical_command == "Play Taare Zameen Par"
+    assert result.raw_transcript == raw
+    assert result.requires_confirmation is confirm
+    assert result.execution_permitted is False
+    expected = "play tharism infer" if "Tharism" in raw else "play taare zameen par"
+    assert result.normalized_transcript == expected
+    if "Tharism" in raw:
+        assert result.candidates[0].match_type == "observed_asr_error"
+        assert "User-observed ASR error" in result.candidates[0].provenance
+
+
+@pytest.mark.parametrize("raw,reason", [
+    ("Don\u2019t open Spotify.", "negated_command"),
+    ("Open Spotify and open Chrome.", "compound_command"),
+    ("open Spotify and play Taare Zameen Par and mute", "compound_command"),
+    ("open Chrome and play Taare Zameen Par", "compound_command"),
+    ("open Spotfy and play Taare Zameen Par", "compound_command"),
+    ("open Spotify and play a song", "unknown_entity"),
+    ("open Spotify and play", "missing_entity"),
+])
+def test_manual_negative_and_incomplete(resolver, raw, reason):
+    result = resolver.resolve(raw)
+    assert result.requires_confirmation
+    assert result.canonical_command is None
+    assert reason in result.reasons
+    assert result.raw_transcript == raw and not result.execution_permitted
+
+
+@pytest.mark.parametrize("separator", [",", ", ", " ", "\t", "\u200b", "\ufeff"])
+@pytest.mark.parametrize("title", ["Tharism Infer", "Taare Zameen Par"])
+def test_word_boundaries_and_alias_suggestion(resolver, separator, title):
+    raw = "Play" + separator + title
+    result = resolver.resolve(raw)
+    assert result.raw_transcript == raw
+    assert result.normalized_transcript == "play " + title.lower()
+    assert result.canonical_command == "Play Taare Zameen Par"
+    assert result.requires_confirmation is (title == "Tharism Infer")
+
+
+def test_received_joined_title_is_not_falsely_reported_with_space(resolver):
+    raw = "Play TaareZameen Par"
+    result = resolver.resolve(raw)
+    assert result.raw_transcript == raw
+    assert result.requires_confirmation
