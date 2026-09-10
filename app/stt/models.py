@@ -4,7 +4,7 @@ from enum import StrEnum
 from typing import Literal
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, computed_field, field_validator, model_validator
 
 from app.audio.models import RecordedAudio
 from app.core.config import normalize_stt_language
@@ -13,10 +13,12 @@ from app.core.config import normalize_stt_language
 class TranscriptionStatus(StrEnum):
     SUCCEEDED = "succeeded"
     FAILED = "failed"
+    UNUSABLE_AUDIO = "unusable_audio"
     CANCELLED = "cancelled"
 
 
 class TranscriptionErrorCode(StrEnum):
+    UNUSABLE_AUDIO = "unusable_audio"
     EMPTY_AUDIO = "empty_audio"
     AUDIO_TOO_LONG = "audio_too_long"
     FILE_NOT_FOUND = "file_not_found"
@@ -66,6 +68,8 @@ class TranscriptSegment(BaseModel):
     text: str = Field(repr=False)
     start: float = Field(ge=0, allow_inf_nan=False)
     end: float = Field(ge=0, allow_inf_nan=False)
+    no_speech_prob: float | None = Field(default=None, ge=0, le=1, allow_inf_nan=False)
+    avg_logprob: float | None = Field(default=None, allow_inf_nan=False)
     words: tuple[WordTimestamp, ...] = Field(default=(), repr=False)
 
     @model_validator(mode="after")
@@ -97,6 +101,10 @@ class TranscriptionResult(BaseModel):
     compute_type: str
     status: TranscriptionStatus
     error: SafeTranscriptionError | None = None
+    rejection_reasons: tuple[Literal["empty_output", "repeated_word", "repeated_phrase",
+                                    "token_limit", "character_limit", "no_speech",
+                                    "output_budget_exceeded", "safety_gate_error"], ...] = ()
+    _diagnostics: object = PrivateAttr(default=None)
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     @model_validator(mode="after")

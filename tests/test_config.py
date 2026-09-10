@@ -46,6 +46,12 @@ def test_safe_defaults(tmp_path):
         "audio_silence_threshold": 0.01, "stt_temperature": 0.0,
         "stt_vad_min_silence_duration_ms": 1000,
         "stt_initial_prompt": "VoicePilot, Spotify, WhatsApp, Chrome, YouTube, Dhruti.",
+        "stt_safety_word_repetitions": 8, "stt_safety_phrase_repetitions": 4,
+        "stt_safety_phrase_min_tokens": 16, "stt_safety_min_tokens": 30,
+        "stt_safety_tokens_per_second": 6, "stt_safety_min_characters": 180,
+        "stt_safety_characters_per_second": 40, "stt_safety_no_speech_prob": .8,
+        "stt_safety_avg_logprob": -1.0, "stt_safety_max_segments": 256,
+        "stt_safety_max_output_characters": 8192,
         "stt_hotwords": "VoicePilot Spotify WhatsApp Chrome YouTube Dhruti",
     }
     assert list(tmp_path.iterdir()) == []

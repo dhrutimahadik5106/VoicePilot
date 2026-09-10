@@ -9,6 +9,7 @@ import numpy as np
 
 from app.audio.models import AudioFormat, RecordedAudio
 from app.core.config import Settings
+from app.stt.output_safety import apply_output_safety
 from app.stt.contracts import SpeechToTextEngine, TranscriptionError
 from app.stt.models import (
     SafeTranscriptionError, TranscriptionErrorCode as Code, TranscriptionRequest,
@@ -78,7 +79,10 @@ class TranscriptionService:
             return self._failure(request.audio_id, Code.CANCELLED, audio.duration, execution_correlation_id)
         if audio.duration > self.settings.stt_max_duration_seconds:
             return self._failure(request.audio_id, Code.AUDIO_TOO_LONG, audio.duration, execution_correlation_id)
-        return self.engine.transcribe(request, cancel=cancel)
+        result = self.engine.transcribe(request, cancel=cancel)
+        # Duration is measured from the supplied PCM, not trusted engine metadata.
+        result = result.model_copy(update={"source_audio_duration": audio.duration})
+        return apply_output_safety(result, self.settings, cancel)
 
     def transcribe_file(self, path: Path, *, language=None, cancel: Event | None = None,
                         audio_id: UUID | None = None, execution_correlation_id: UUID | None = None):

@@ -10,6 +10,7 @@ from time import perf_counter
 import numpy as np
 
 from app.core.config import Settings
+from app.stt.output_safety import OutputBudget, apply_output_safety, reject
 from app.stt.contracts import TranscriptionError
 from app.stt.models import (
     SafeTranscriptionError, TranscriptSegment, TranscriptionErrorCode as Code,
@@ -147,22 +148,37 @@ class FasterWhisperEngine:
                     hotwords=self.settings.stt_hotwords or None,
                 )
                 segments = []
+                budget = OutputBudget(self.settings)
                 for segment in stream:
                     if cancel is not None and cancel.is_set():
                         raise TranscriptionError(Code.CANCELLED)
+                    if not budget.add(segment.text):
+                        break
                     words = ()
                     if self.settings.stt_word_timestamps and segment.words:
                         words = tuple(WordTimestamp(text=word.word, start=word.start, end=word.end)
                                       for word in segment.words)
                     segments.append(TranscriptSegment(
                         text=segment.text, start=segment.start, end=segment.end, words=words,
+                        no_speech_prob=getattr(segment, "no_speech_prob", None),
+                        avg_logprob=getattr(segment, "avg_logprob", None),
                     ))
                 if cancel is not None and cancel.is_set():
                     raise TranscriptionError(Code.CANCELLED)
                 inference_duration = max(0.0, self._clock() - inference_started)
                 inference_started = None
                 segments.sort(key=lambda segment: (segment.start, segment.end))
-                return TranscriptionResult(
+                if budget.exhausted:
+                    result = self.failure(
+                        request, Code.UNUSABLE_AUDIO, max(0.0, self._clock() - started),
+                        model_load_duration=model_load_duration,
+                        inference_duration=inference_duration, cold_start=cold_start,
+                    )
+                    return apply_output_safety(
+                        reject(result, ("output_budget_exceeded",), budget.diagnostics()),
+                        self.settings, cancel,
+                    )
+                result = TranscriptionResult(
                     audio_id=request.audio_id, execution_correlation_id=request.execution_correlation_id,
                     text=" ".join(segment.text.strip() for segment in segments if segment.text.strip()),
                     language=info.language,
@@ -174,6 +190,11 @@ class FasterWhisperEngine:
                     model_name=self.settings.whisper_model, device=self.settings.whisper_device,
                     compute_type=self.settings.whisper_compute_type, status=TranscriptionStatus.SUCCEEDED,
                 )
+                result = apply_output_safety(result, self.settings, cancel)
+                if result.status == TranscriptionStatus.UNUSABLE_AUDIO:
+                    # Preserve decoder yield order, before chronological sorting.
+                    result._diagnostics = budget.diagnostics()
+                return result
         except (Exception, KeyboardInterrupt) as error:
             if isinstance(error, KeyboardInterrupt):
                 code = Code.CANCELLED

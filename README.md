@@ -260,3 +260,23 @@ regression locks that provenance formatting and observed_asr_error status.
 Subprocess regression is restricted to the existing venv's non-executing CLI,
 with shell disabled and child network/system-action entry points blocked.
 No dependency, audio, model, automation or later-phase changes are made.
+
+## Phase 3C: STT output safety
+
+Every STT service result passes a shared local output gate. Empty, excessively
+repetitive, implausibly long, jointly no-speech/low-logprob, or budget-exhausted
+output becomes unusable_audio; no transcript is forwarded for command resolution.
+Retry with a clean capture. Whole results are rejected; words are never removed
+to salvage a command. Successful raw and normalized transcripts remain separate.
+Short repetition such as "stop, stop" remains valid.
+
+Rejected decoder text is retained only as a bounded private in-memory diagnostic
+prefix, never in CLI output, logs, ordinary serialization, resolver output or files.
+Cancellation discards diagnostics. Audio is not saved by STT. The text-only resolver
+bypasses STT provenance; manually typed commands do not validate speech recognition.
+
+See [decision 0005](docs/decisions/0005-stt-output-safety.md) for exact rules,
+configuration names, privacy limits and evaluation methodology. Defaults are
+unvalidated engineering thresholds; accuracy and hallucination detection are not
+guaranteed, especially across languages. No microphone/model test or research
+accuracy claim is implied. Existing manual STT commands are unchanged.

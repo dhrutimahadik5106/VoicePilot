@@ -118,6 +118,19 @@ class Settings(BaseSettings):
     stt_model_dir: Path = Path("models/whisper")
     stt_local_files_only: bool = False
 
+    # Unvalidated engineering defaults; these do not estimate STT confidence.
+    stt_safety_word_repetitions: int = Field(default=8, ge=2, le=100)
+    stt_safety_phrase_repetitions: int = Field(default=4, ge=2, le=100)
+    stt_safety_phrase_min_tokens: int = Field(default=16, ge=4, le=800)
+    stt_safety_min_tokens: int = Field(default=30, ge=1, le=1000)
+    stt_safety_tokens_per_second: float = Field(default=6, gt=0, le=100, allow_inf_nan=False)
+    stt_safety_min_characters: int = Field(default=180, ge=1, le=8192)
+    stt_safety_characters_per_second: float = Field(default=40, gt=0, le=1000, allow_inf_nan=False)
+    stt_safety_no_speech_prob: float = Field(default=0.8, ge=0, le=1, allow_inf_nan=False)
+    stt_safety_avg_logprob: float = Field(default=-1.0, le=0, allow_inf_nan=False)
+    stt_safety_max_segments: int = Field(default=256, ge=1, le=4096)
+    stt_safety_max_output_characters: int = Field(default=8192, ge=180, le=65536)
+
     @field_validator("stt_language", mode="before")
     @classmethod
     def validate_stt_language(cls, value):

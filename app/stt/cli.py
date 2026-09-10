@@ -19,7 +19,7 @@ def display_result(result, write):
     if result.status == TranscriptionStatus.CANCELLED:
         write("CANCELLED. Transcript discarded.")
         return 0
-    if result.status == TranscriptionStatus.FAILED:
+    if result.status != TranscriptionStatus.SUCCEEDED:
         write(f"STT error: {result.error_code.value}")
         return 1
     # Only sanitize terminal controls; never truncate or rewrite recognized words.

@@ -101,3 +101,15 @@ speaker verification, LLM or frontend is introduced.
 Versioned aliases and intent grammar are independent of the 80-row synthetic
 seed. Tests block network, hardware/model imports and system-action functions.
 Seed evaluation is not held-out research evidence or raw ASR accuracy.
+
+## Phase 3C output gate
+
+FasterWhisperEngine -> shared output_safety policy -> TranscriptionService (same
+idempotent policy for every engine) -> successful STT only -> optional text proposal.
+The engine collects optional segment no-speech/logprob metadata and bounds generator
+consumption. The service uses actual PCM duration for length checks. All non-success
+statuses are blocked by resolve_stt without reading transcript contents.
+unusable_audio exposes empty transcripts and safe reason codes. Only a bounded
+private in-memory object retains decoder text; cancellation discards it. No persistence,
+execution or later-phase integration is added. Explicit text resolution bypasses STT
+provenance. See decision 0005 for exact defaults, limitations and privacy boundaries.

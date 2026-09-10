@@ -60,3 +60,17 @@
   acceptance. No fabricated recording, result or publication claim.
 - Future audio collection requires separate consent, restricted identity mapping
   and speaker-disjoint train/validation/test splits. Collect no audio in 3B.
+
+- Phase 3C permits only centralized STT output safety in app/stt/output_safety.py.
+  Apply the same policy to all service engines; engine code may collect metadata
+  and enforce output budgets. Never duplicate independent rejection rules.
+- Reject whole unusable outputs with empty public transcripts and status
+  unusable_audio. Never remove repetitions to salvage a command.
+- Rejected decoder diagnostics must remain bounded and private in memory, absent
+  from repr, ordinary serialization, CLI, logs, exceptions and resolver output.
+  Cancellation discards diagnostics; never save rejected audio or text.
+- Block every non-successful STT status from resolution. Explicit text input
+  bypasses STT provenance. No command execution or Phase 4 is authorized.
+- Safety thresholds are unvalidated engineering defaults. Use synthetic/fake
+  tests only; document false rejection/acceptance risks and never fabricate
+  research performance. See docs/decisions/0005-stt-output-safety.md.

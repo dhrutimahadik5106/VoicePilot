@@ -65,8 +65,8 @@ class CommandResolver:
     def resolve_stt(self, result):
         # Consume the raw property, never the prior STT normalized/compatibility text.
         if result.status != "succeeded":
-            return Resolution(raw_transcript=result.raw_transcript,
-                              normalized_transcript=normalize(result.raw_transcript), language="mixed",
+            return Resolution(raw_transcript="",
+                              normalized_transcript="", language="mixed",
                               status="unknown", requires_confirmation=True, reasons=("unsuccessful_stt",))
         language = result.language if result.language in {"en", "hi", "mr"} else "mixed"
         return self.resolve(result.raw_transcript, language=language)
