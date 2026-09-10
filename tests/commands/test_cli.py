@@ -38,3 +38,22 @@ def test_cli_preserves_received_title_spacing():
         output = []
         assert main(["resolve", raw], write=output.append) == 0
         assert json.loads(output[0])["raw_transcript"] == raw
+
+def test_exact_cli_argument_and_subprocess_context(cli_subprocess):
+    inputs = [
+        ("Hey Voice Pilot, open Spotify and play Taare Zameen Par.", False),
+        ("Hey Voice Pilot, open Spotify and play Tharism Infer.", True),
+        ("Play VoicePilot, Open, Spotify, and Play Tharism Infer.", True),
+    ]
+    for raw, confirmation in inputs:
+        output = []
+        assert main(["resolve", raw], write=output.append) == 0
+        for payload in (output[0], cli_subprocess(raw)):
+            result = json.loads(payload)
+            assert result["raw_transcript"].encode("utf-8") == raw.encode("utf-8")
+            assert result["entities"] == {"application": "Spotify", "media": "Taare Zameen Par"}
+            assert result["canonical_command"] == "Play Taare Zameen Par on Spotify"
+            assert result["requires_confirmation"] is confirmation
+            assert result["execution_permitted"] is False
+            if confirmation:
+                assert "Phase 3B instructions" in result["candidates"][0]["provenance"]

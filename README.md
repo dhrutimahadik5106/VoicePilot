@@ -237,3 +237,26 @@ One seed annotation, open Spotify and play Taare Zameen Par, changes from reject
 compound to the newly approved play_media workflow. No other labels, aliases,
 thresholds or unrelated rules were tuned. Metrics before/after therefore include
 this disclosed specification change; they remain synthetic development metrics.
+
+## Final Phase 3B context and raw-text contract correction
+
+Coordinated Spotify/play proposals now retain both application=Spotify and
+media=<title>, with canonical command Play <title> on Spotify. Observed ASR
+variants still require confirmation; missing media keeps the known application
+but yields no complete canonical command. Only the corresponding workflow seed
+annotation is updated. Ordinary media requests without app context are unchanged.
+
+Controlled pre-edit tracing preserved the exact spaced input through PowerShell
+argv reception, direct resolution, Pydantic round-trip, supplied CLI argument
+list, and a Python subprocess CLI with byte-equal UTF-8 round trips. No loss
+reproduced in address/workflow stripping or JSON serialization. Thus the earlier
+manual discrepancy remains unlocated; it is not assumed to be copying. The
+resolver preserves the exact Unicode string received (and its UTF-8 encoding);
+JSON escaping is representation, not deletion of whitespace. Strict raw-string
+typing and regressions cover this contract without normalizing raw text.
+
+The registry already stored Phase 3B instructions with its space intact. A
+regression locks that provenance formatting and observed_asr_error status.
+Subprocess regression is restricted to the existing venv's non-executing CLI,
+with shell disabled and child network/system-action entry points blocked.
+No dependency, audio, model, automation or later-phase changes are made.

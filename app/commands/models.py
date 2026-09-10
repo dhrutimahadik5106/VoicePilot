@@ -32,6 +32,17 @@ TEMPLATES = {
 }
 
 
+def render_command(intent, entities):
+    """Format a proposal while retaining optional play-application context."""
+    slot = SLOTS.get(intent)
+    if slot is not None and slot not in entities:
+        return None
+    proposal = TEMPLATES[intent].format(**entities)
+    if intent == Intent.PLAY_MEDIA and "application" in entities:
+        proposal += " on " + entities["application"]
+    return proposal
+
+
 class Contract(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
@@ -68,14 +79,17 @@ class DatasetRow(Contract):
                 raise ValueError("Unknown commands require abstention")
         else:
             slot = SLOTS.get(self.canonical_intent)
-            if set(self.entities) - ({slot} if slot else set()):
+            allowed = {slot} if slot else set()
+            if self.canonical_intent == Intent.PLAY_MEDIA:
+                allowed.add("application")
+            if set(self.entities) - allowed:
                 raise ValueError("Unexpected entity slot")
             if any(not value.strip() or len(value) > 160 for value in self.entities.values()):
                 raise ValueError("Invalid entity")
             if slot and slot not in self.entities:
                 if self.canonical_command is not None or not self.expected_confirmation_requirement:
                     raise ValueError("Incomplete entities require confirmation")
-            elif self.canonical_command != TEMPLATES[self.canonical_intent].format(**self.entities):
+            elif self.canonical_command != render_command(self.canonical_intent, self.entities):
                 raise ValueError("Canonical command does not match intent/entities")
         if self.variation_type in {"observed_asr_error", "unknown_entity", "incomplete",
                                     "negated", "compound", "ambiguous", "unknown", "typo"}:
@@ -103,7 +117,7 @@ class Candidate(Contract):
 
 
 class Resolution(Contract):
-    raw_transcript: str = Field(repr=False)
+    raw_transcript: str = Field(repr=False, strict=True)
     normalized_transcript: str = Field(repr=False)
     language: Language
     intent: Intent | None = None

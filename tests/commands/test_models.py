@@ -53,3 +53,11 @@ def test_unknown_schema_and_execution_prohibition():
 def test_config_limits(changes):
     with pytest.raises(ValidationError):
         ResolverConfig(**changes)
+
+def test_dataset_play_application_context_validation():
+    valid = row(canonical_intent="play_media",
+                entities={"application": "Spotify", "media": "Taare Zameen Par"},
+                canonical_command="Play Taare Zameen Par on Spotify")
+    assert DatasetRow(**valid).entities["application"] == "Spotify"
+    with pytest.raises(ValidationError):
+        DatasetRow(**(valid | {"canonical_command": "Play Taare Zameen Par"}))

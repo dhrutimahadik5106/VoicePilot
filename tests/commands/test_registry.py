@@ -43,3 +43,10 @@ def test_registry_independent_of_seed(monkeypatch):
     monkeypatch.setattr(Path, "read_text", read)
     from app.commands.resolver import CommandResolver
     assert CommandResolver.from_directory().resolve("open Spotify").status == "resolved"
+
+def test_observed_provenance_spacing(resolver):
+    candidate = resolver.resolve("open Spotify and play Tharism Infer").candidates[0]
+    assert "Phase 3B instructions" in candidate.provenance
+    assert "Phase 3Binstructions" not in candidate.provenance
+    assert candidate.match_type == "observed_asr_error"
+    assert candidate.requires_confirmation

@@ -91,7 +91,8 @@ def test_oversize_text_rejected(resolver):
 def test_manual_spotify_workflow(resolver, raw, confirm):
     result = resolver.resolve(raw)
     assert result.intent == "play_media"
-    assert result.canonical_command == "Play Taare Zameen Par"
+    assert result.entities == {"application": "Spotify", "media": "Taare Zameen Par"}
+    assert result.canonical_command == "Play Taare Zameen Par on Spotify"
     assert result.raw_transcript == raw
     assert result.requires_confirmation is confirm
     assert result.execution_permitted is False
@@ -135,3 +136,25 @@ def test_received_joined_title_is_not_falsely_reported_with_space(resolver):
     result = resolver.resolve(raw)
     assert result.raw_transcript == raw
     assert result.requires_confirmation
+
+@pytest.mark.parametrize("raw", [
+    "Hey Voice Pilot, open Spotify and play Taare Zameen Par.",
+    "Hey Voice Pilot, open Spotify and play Tharism Infer.",
+    "Play VoicePilot, Open, Spotify, and Play Tharism Infer.",
+    "  Hey Voice Pilot, open Spotify and play Taare  Zameen Par.  ",
+    "play TaareZameen Par",
+    "play Taare\tZameen Par",
+])
+def test_raw_unicode_bytes_through_model_serialization(resolver, raw):
+    from app.commands.models import Resolution
+    result = resolver.resolve(raw)
+    restored = Resolution.model_validate_json(result.model_dump_json())
+    assert result.raw_transcript.encode("utf-8") == raw.encode("utf-8")
+    assert restored.raw_transcript.encode("utf-8") == raw.encode("utf-8")
+    assert not result.execution_permitted
+
+
+def test_missing_media_retains_application_without_complete_proposal(resolver):
+    result = resolver.resolve("open Spotify and play a song")
+    assert result.entities == {"application": "Spotify"}
+    assert result.canonical_command is None and result.requires_confirmation

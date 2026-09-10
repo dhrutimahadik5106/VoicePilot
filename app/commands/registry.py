@@ -7,7 +7,7 @@ from pathlib import Path
 from pydantic import Field, model_validator
 from typing import Literal
 
-from app.commands.models import Contract, Intent, Language, SLOTS, TEMPLATES
+from app.commands.models import Contract, Intent, Language, SLOTS, TEMPLATES, render_command
 
 DATA_DIR = Path(__file__).resolve().parents[2] / "data" / "commands"
 
@@ -99,5 +99,4 @@ def load_registries(directory: Path = DATA_DIR):
 
 
 def canonical_command(intent, entities):
-    slot = SLOTS.get(intent)
-    return TEMPLATES[intent].format(**entities) if slot is None or slot in entities else None
+    return render_command(intent, entities)

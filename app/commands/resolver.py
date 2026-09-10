@@ -101,6 +101,7 @@ class CommandResolver:
                 text = text[len(polite):]
                 break
         workflow = False
+        workflow_application = None
         observed_address = False
         workflow_text = text
         # Only the reported address error before a complete Spotify/play workflow.
@@ -119,6 +120,7 @@ class CommandResolver:
                     and not exact_apps[0].requires_confirmation
                     and not _COMPOUND.search(media_text or "")):
                 workflow = True
+                workflow_application = exact_apps[0].canonical_name
                 text = "play" + (" " + media_text if media_text else "")
                 base["normalized_transcript"] = text
         if _COMPOUND.search(text):
@@ -143,7 +145,8 @@ class CommandResolver:
                               heuristic_score=1, status="resolved", requires_confirmation=False,
                               reasons=("exact_intent_pattern",))
         candidates = self._entity_candidates(entity_text, slot) if entity_text else ()
-        entities, reasons = {}, []
+        entities = {"application": workflow_application} if workflow_application is not None else {}
+        reasons = []
         score = candidates[0].heuristic_score if candidates else 0.0
         if not entity_text:
             reasons.append("missing_entity")
