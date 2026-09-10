@@ -1,0 +1,169 @@
+{
+  "$defs": {
+    "Intent": {
+      "enum": [
+        "open_application",
+        "play_media",
+        "pause",
+        "resume",
+        "stop",
+        "next",
+        "previous",
+        "volume_up",
+        "volume_down",
+        "mute",
+        "unmute",
+        "help"
+      ],
+      "title": "Intent",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "command_id": {
+      "maxLength": 80,
+      "pattern": "^vp3b-[a-z0-9-]+$",
+      "title": "Command Id",
+      "type": "string"
+    },
+    "language": {
+      "enum": [
+        "en",
+        "hi",
+        "mr",
+        "mixed"
+      ],
+      "title": "Language",
+      "type": "string"
+    },
+    "input_transcript": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Input Transcript",
+      "type": "string"
+    },
+    "canonical_intent": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Intent"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "entities": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "title": "Entities",
+      "type": "object"
+    },
+    "canonical_command": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Canonical Command"
+    },
+    "variation_type": {
+      "enum": [
+        "canonical",
+        "paraphrase",
+        "alias",
+        "mixed_language",
+        "observed_asr_error",
+        "unknown_entity",
+        "incomplete",
+        "negated",
+        "compound",
+        "ambiguous",
+        "unknown",
+        "typo"
+      ],
+      "title": "Variation Type",
+      "type": "string"
+    },
+    "expected_confirmation_requirement": {
+      "title": "Expected Confirmation Requirement",
+      "type": "boolean"
+    },
+    "source_type": {
+      "enum": [
+        "synthetic_text",
+        "consented_recording"
+      ],
+      "title": "Source Type",
+      "type": "string"
+    },
+    "anonymous_speaker_id": {
+      "anyOf": [
+        {
+          "pattern": "^spk_[0-9a-f]{16}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Anonymous Speaker Id"
+    },
+    "noise_condition": {
+      "anyOf": [
+        {
+          "enum": [
+            "quiet",
+            "background_speech",
+            "music",
+            "street",
+            "unknown"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Noise Condition"
+    },
+    "consent_reference": {
+      "anyOf": [
+        {
+          "pattern": "^consent_[a-z0-9]{8,64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Consent Reference"
+    }
+  },
+  "required": [
+    "schema_version",
+    "command_id",
+    "language",
+    "input_transcript",
+    "canonical_intent",
+    "entities",
+    "canonical_command",
+    "variation_type",
+    "expected_confirmation_requirement",
+    "source_type"
+  ],
+  "title": "DatasetRow",
+  "type": "object"
+}

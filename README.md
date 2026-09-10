@@ -171,3 +171,42 @@ control, history database, API or frontend is implemented. Phase 4 is not starte
 Tests use fake capture/model backends, synthetic audio and temporary WAVs.
 STT tests block real model/hardware imports and socket connections. No real
 microphone, download, model inference or performance benchmark is run by tests.
+
+## Phase 3B: non-executing command resolution
+
+The text-only command resolver proposes intent/entities without opening apps,
+controlling media, reading personal files or executing commands. It preserves
+raw_transcript unchanged, creates a separate matching-normalized transcript,
+and exposes canonical_command as a proposal. Existing STT behavior is unchanged.
+
+Run from the project root:
+```powershell
+.\venv\Scripts\python.exe -m app.commands.cli resolve "open Spotify"
+.\venv\Scripts\python.exe -m app.commands.cli resolve "play Tharism Infer"
+.\venv\Scripts\python.exe -m app.commands.cli validate-dataset
+.\venv\Scripts\python.exe -m app.commands.cli evaluate
+.\venv\Scripts\python.exe -m pytest tests/commands
+```
+
+Every result has execution_permitted=false. Resolved means interpreted only.
+Scores are heuristic match scores, not probabilities, calibrated confidence or
+STT confidence. Unknown, incomplete, negated, compound, fuzzy and ambiguous
+requests cannot silently become accepted proposals. Tharism Infer is a
+user-observed ASR error for Taare Zameen Par, not a pronunciation, and always
+requires explicit confirmation. No confirmation-to-execution path exists.
+
+The registry is independently defined in data/commands/aliases-v1.json and
+intents-v1.json. --registry-dir selects an explicit alternate registry directory;
+ResolverConfig controls bounded match thresholds. There is no seed lookup at
+runtime, no model training, and no automatic transcript/history storage.
+
+The 80-row seed is synthetic development/test text, not a research training
+dataset or evidence of real-world accuracy. Evaluation reports exact counts,
+denominators and percentages, including coverage and explicitly defined false
+acceptance. Unsupported paraphrases are expected; the rules are not tuned to
+make seed metrics perfect. Empty-entity/null labels can inflate exact-match
+metrics, and these results say nothing about raw ASR WER or acoustic robustness.
+
+See docs/datasets/command-dataset-v1.md for schema, score policy, metric
+denominators, consent, pseudonymization, speaker-disjoint future audio splits
+and limitations. No audio is collected in Phase 3B. No later phase is started.

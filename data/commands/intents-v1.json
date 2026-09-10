@@ -1,0 +1,365 @@
+{
+  "schema_version": "1.0",
+  "intents": [
+    {
+      "intent": "open_application",
+      "patterns": [
+        {
+          "text": "open {application}",
+          "language": "en"
+        },
+        {
+          "text": "launch {application}",
+          "language": "en"
+        },
+        {
+          "text": "{application} खोलो",
+          "language": "hi"
+        },
+        {
+          "text": "{application} खोल दो",
+          "language": "hi"
+        },
+        {
+          "text": "{application} उघड",
+          "language": "mr"
+        },
+        {
+          "text": "{application} सुरू कर",
+          "language": "mr"
+        },
+        {
+          "text": "{application} ओपन करो",
+          "language": "mixed"
+        },
+        {
+          "text": "{application} ओपन कर",
+          "language": "mixed"
+        }
+      ]
+    },
+    {
+      "intent": "play_media",
+      "patterns": [
+        {
+          "text": "play {media}",
+          "language": "en"
+        },
+        {
+          "text": "{media} चलाओ",
+          "language": "hi"
+        },
+        {
+          "text": "{media} बजाओ",
+          "language": "hi"
+        },
+        {
+          "text": "{media} लावा",
+          "language": "mr"
+        },
+        {
+          "text": "{media} वाजव",
+          "language": "mr"
+        },
+        {
+          "text": "{media} प्ले करो",
+          "language": "mixed"
+        },
+        {
+          "text": "{media} प्ले कर",
+          "language": "mixed"
+        }
+      ]
+    },
+    {
+      "intent": "pause",
+      "patterns": [
+        {
+          "text": "pause",
+          "language": "en"
+        },
+        {
+          "text": "pause playback",
+          "language": "en"
+        },
+        {
+          "text": "गाना रोक दो",
+          "language": "hi"
+        },
+        {
+          "text": "गाणे थांबव",
+          "language": "mr"
+        },
+        {
+          "text": "pause करो",
+          "language": "mixed"
+        },
+        {
+          "text": "pause कर",
+          "language": "mixed"
+        }
+      ]
+    },
+    {
+      "intent": "resume",
+      "patterns": [
+        {
+          "text": "resume",
+          "language": "en"
+        },
+        {
+          "text": "resume playback",
+          "language": "en"
+        },
+        {
+          "text": "गाना जारी रखो",
+          "language": "hi"
+        },
+        {
+          "text": "गाणे पुन्हा सुरू कर",
+          "language": "mr"
+        },
+        {
+          "text": "resume करो",
+          "language": "mixed"
+        },
+        {
+          "text": "resume कर",
+          "language": "mixed"
+        }
+      ]
+    },
+    {
+      "intent": "stop",
+      "patterns": [
+        {
+          "text": "stop playback",
+          "language": "en"
+        },
+        {
+          "text": "stop",
+          "language": "en"
+        },
+        {
+          "text": "प्लेबैक बंद करो",
+          "language": "hi"
+        },
+        {
+          "text": "प्लेबॅक बंद कर",
+          "language": "mr"
+        },
+        {
+          "text": "stop करो",
+          "language": "mixed"
+        },
+        {
+          "text": "stop कर",
+          "language": "mixed"
+        }
+      ]
+    },
+    {
+      "intent": "next",
+      "patterns": [
+        {
+          "text": "next track",
+          "language": "en"
+        },
+        {
+          "text": "skip track",
+          "language": "en"
+        },
+        {
+          "text": "अगला गाना",
+          "language": "hi"
+        },
+        {
+          "text": "पुढचे गाणे",
+          "language": "mr"
+        },
+        {
+          "text": "next गाना",
+          "language": "mixed"
+        },
+        {
+          "text": "next गाणे",
+          "language": "mixed"
+        }
+      ]
+    },
+    {
+      "intent": "previous",
+      "patterns": [
+        {
+          "text": "previous track",
+          "language": "en"
+        },
+        {
+          "text": "previous song",
+          "language": "en"
+        },
+        {
+          "text": "पिछला गाना",
+          "language": "hi"
+        },
+        {
+          "text": "मागचे गाणे",
+          "language": "mr"
+        },
+        {
+          "text": "previous गाना",
+          "language": "mixed"
+        },
+        {
+          "text": "previous गाणे",
+          "language": "mixed"
+        }
+      ]
+    },
+    {
+      "intent": "volume_up",
+      "patterns": [
+        {
+          "text": "volume up",
+          "language": "en"
+        },
+        {
+          "text": "increase volume",
+          "language": "en"
+        },
+        {
+          "text": "आवाज़ बढ़ाओ",
+          "language": "hi"
+        },
+        {
+          "text": "आवाज वाढव",
+          "language": "mr"
+        },
+        {
+          "text": "volume बढ़ाओ",
+          "language": "mixed"
+        },
+        {
+          "text": "volume वाढव",
+          "language": "mixed"
+        }
+      ]
+    },
+    {
+      "intent": "volume_down",
+      "patterns": [
+        {
+          "text": "volume down",
+          "language": "en"
+        },
+        {
+          "text": "decrease volume",
+          "language": "en"
+        },
+        {
+          "text": "आवाज़ कम करो",
+          "language": "hi"
+        },
+        {
+          "text": "आवाज कमी कर",
+          "language": "mr"
+        },
+        {
+          "text": "volume कम करो",
+          "language": "mixed"
+        },
+        {
+          "text": "volume कमी कर",
+          "language": "mixed"
+        }
+      ]
+    },
+    {
+      "intent": "mute",
+      "patterns": [
+        {
+          "text": "mute",
+          "language": "en"
+        },
+        {
+          "text": "mute audio",
+          "language": "en"
+        },
+        {
+          "text": "आवाज़ बंद करो",
+          "language": "hi"
+        },
+        {
+          "text": "आवाज बंद कर",
+          "language": "mr"
+        },
+        {
+          "text": "mute करो",
+          "language": "mixed"
+        },
+        {
+          "text": "mute कर",
+          "language": "mixed"
+        }
+      ]
+    },
+    {
+      "intent": "unmute",
+      "patterns": [
+        {
+          "text": "unmute",
+          "language": "en"
+        },
+        {
+          "text": "unmute audio",
+          "language": "en"
+        },
+        {
+          "text": "आवाज़ चालू करो",
+          "language": "hi"
+        },
+        {
+          "text": "आवाज चालू कर",
+          "language": "mr"
+        },
+        {
+          "text": "unmute करो",
+          "language": "mixed"
+        },
+        {
+          "text": "unmute कर",
+          "language": "mixed"
+        }
+      ]
+    },
+    {
+      "intent": "help",
+      "patterns": [
+        {
+          "text": "help",
+          "language": "en"
+        },
+        {
+          "text": "show help",
+          "language": "en"
+        },
+        {
+          "text": "मदद करो",
+          "language": "hi"
+        },
+        {
+          "text": "मदत कर",
+          "language": "mr"
+        },
+        {
+          "text": "help करो",
+          "language": "mixed"
+        },
+        {
+          "text": "help कर",
+          "language": "mixed"
+        }
+      ]
+    }
+  ]
+}

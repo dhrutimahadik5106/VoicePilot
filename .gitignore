@@ -53,3 +53,6 @@ experiments/raw/
 *.pt
 *.pth
 *.wav
+
+# Future restricted collection metadata; no directory created by Phase 3B
+data/commands/private/

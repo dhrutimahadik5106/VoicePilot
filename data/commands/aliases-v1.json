@@ -1,0 +1,222 @@
+{
+  "schema_version": "1.0",
+  "entities": [
+    {
+      "entity_id": "voicepilot",
+      "canonical_name": "VoicePilot",
+      "kind": "assistant",
+      "aliases": [
+        {
+          "text": "Voice Pilot",
+          "language": "en",
+          "kind": "alias",
+          "requires_confirmation": false,
+          "provenance": "Maintainer-defined vocabulary entry, independent of seed sentences; not a pronunciation study."
+        },
+        {
+          "text": "वॉइस पायलट",
+          "language": "hi",
+          "kind": "alias",
+          "requires_confirmation": false,
+          "provenance": "Maintainer-defined vocabulary entry, independent of seed sentences; not a pronunciation study."
+        },
+        {
+          "text": "व्हॉइस पायलट",
+          "language": "mr",
+          "kind": "alias",
+          "requires_confirmation": false,
+          "provenance": "Maintainer-defined vocabulary entry, independent of seed sentences; not a pronunciation study."
+        }
+      ]
+    },
+    {
+      "entity_id": "spotify",
+      "canonical_name": "Spotify",
+      "kind": "application",
+      "aliases": [
+        {
+          "text": "स्पॉटिफाई",
+          "language": "hi",
+          "kind": "alias",
+          "requires_confirmation": false,
+          "provenance": "Maintainer-defined vocabulary entry, independent of seed sentences; not a pronunciation study."
+        },
+        {
+          "text": "स्पॉटिफाय",
+          "language": "mr",
+          "kind": "alias",
+          "requires_confirmation": false,
+          "provenance": "Maintainer-defined vocabulary entry, independent of seed sentences; not a pronunciation study."
+        },
+        {
+          "text": "music app",
+          "language": "en",
+          "kind": "shorthand",
+          "requires_confirmation": true,
+          "provenance": "Maintainer-defined vocabulary entry, independent of seed sentences; not a pronunciation study."
+        }
+      ]
+    },
+    {
+      "entity_id": "whatsapp",
+      "canonical_name": "WhatsApp",
+      "kind": "application",
+      "aliases": [
+        {
+          "text": "Whats App",
+          "language": "en",
+          "kind": "alias",
+          "requires_confirmation": false,
+          "provenance": "Maintainer-defined vocabulary entry, independent of seed sentences; not a pronunciation study."
+        },
+        {
+          "text": "व्हाट्सऐप",
+          "language": "hi",
+          "kind": "alias",
+          "requires_confirmation": false,
+          "provenance": "Maintainer-defined vocabulary entry, independent of seed sentences; not a pronunciation study."
+        },
+        {
+          "text": "व्हॉट्सअॅप",
+          "language": "mr",
+          "kind": "alias",
+          "requires_confirmation": false,
+          "provenance": "Maintainer-defined vocabulary entry, independent of seed sentences; not a pronunciation study."
+        }
+      ]
+    },
+    {
+      "entity_id": "chrome",
+      "canonical_name": "Chrome",
+      "kind": "application",
+      "aliases": [
+        {
+          "text": "Google Chrome",
+          "language": "en",
+          "kind": "alias",
+          "requires_confirmation": false,
+          "provenance": "Maintainer-defined vocabulary entry, independent of seed sentences; not a pronunciation study."
+        },
+        {
+          "text": "क्रोम",
+          "language": "mixed",
+          "kind": "alias",
+          "requires_confirmation": false,
+          "provenance": "Maintainer-defined vocabulary entry, independent of seed sentences; not a pronunciation study."
+        },
+        {
+          "text": "browser",
+          "language": "en",
+          "kind": "shorthand",
+          "requires_confirmation": true,
+          "provenance": "Maintainer-defined vocabulary entry, independent of seed sentences; not a pronunciation study."
+        }
+      ]
+    },
+    {
+      "entity_id": "chrome_beta",
+      "canonical_name": "Chrome Beta",
+      "kind": "application",
+      "aliases": [
+        {
+          "text": "क्रोम बीटा",
+          "language": "mixed",
+          "kind": "alias",
+          "requires_confirmation": false,
+          "provenance": "Maintainer-defined vocabulary entry, independent of seed sentences; not a pronunciation study."
+        },
+        {
+          "text": "browser",
+          "language": "en",
+          "kind": "shorthand",
+          "requires_confirmation": true,
+          "provenance": "Maintainer-defined vocabulary entry, independent of seed sentences; not a pronunciation study."
+        }
+      ]
+    },
+    {
+      "entity_id": "youtube",
+      "canonical_name": "YouTube",
+      "kind": "application",
+      "aliases": [
+        {
+          "text": "You Tube",
+          "language": "en",
+          "kind": "alias",
+          "requires_confirmation": false,
+          "provenance": "Maintainer-defined vocabulary entry, independent of seed sentences; not a pronunciation study."
+        },
+        {
+          "text": "यूट्यूब",
+          "language": "mixed",
+          "kind": "alias",
+          "requires_confirmation": false,
+          "provenance": "Maintainer-defined vocabulary entry, independent of seed sentences; not a pronunciation study."
+        },
+        {
+          "text": "music app",
+          "language": "en",
+          "kind": "shorthand",
+          "requires_confirmation": true,
+          "provenance": "Maintainer-defined vocabulary entry, independent of seed sentences; not a pronunciation study."
+        }
+      ]
+    },
+    {
+      "entity_id": "taare_zameen_par",
+      "canonical_name": "Taare Zameen Par",
+      "kind": "media",
+      "aliases": [
+        {
+          "text": "तारे ज़मीन पर",
+          "language": "hi",
+          "kind": "alias",
+          "requires_confirmation": false,
+          "provenance": "Maintainer-defined vocabulary entry, independent of seed sentences; not a pronunciation study."
+        },
+        {
+          "text": "तारे जमीन पर",
+          "language": "mixed",
+          "kind": "alias",
+          "requires_confirmation": false,
+          "provenance": "Maintainer-defined vocabulary entry, independent of seed sentences; not a pronunciation study."
+        },
+        {
+          "text": "taare",
+          "language": "en",
+          "kind": "shorthand",
+          "requires_confirmation": true,
+          "provenance": "Maintainer-defined vocabulary entry, independent of seed sentences; not a pronunciation study."
+        },
+        {
+          "text": "Tharism Infer",
+          "language": "en",
+          "kind": "observed_asr_error",
+          "requires_confirmation": true,
+          "provenance": "User-observed ASR error reported in Phase 3B instructions for Taare Zameen Par; no audio independently inspected; not a genuine pronunciation."
+        }
+      ]
+    },
+    {
+      "entity_id": "taare_soundtrack",
+      "canonical_name": "Taare Zameen Par soundtrack",
+      "kind": "media",
+      "aliases": [
+        {
+          "text": "तारे जमीन पर साउंडट्रैक",
+          "language": "hi",
+          "kind": "alias",
+          "requires_confirmation": false,
+          "provenance": "Maintainer-defined vocabulary entry, independent of seed sentences; not a pronunciation study."
+        },
+        {
+          "text": "taare",
+          "language": "en",
+          "kind": "shorthand",
+          "requires_confirmation": true,
+          "provenance": "Maintainer-defined vocabulary entry, independent of seed sentences; not a pronunciation study."
+        }
+      ]
+    }
+  ]
+}

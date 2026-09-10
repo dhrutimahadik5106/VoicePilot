@@ -42,3 +42,21 @@
 - Reuse the model within a session; request fresh capture consent for each turn.
 - Document silence/VAD cutoff risks, multilingual limitations and uncertain
   accuracy. Do not automatically run real microphone/model/performance tests.
+
+- Phase 3B is approved only for text-domain interpretation and dataset foundation.
+  It must never execute proposals, open applications, control media or read
+  personal files. No speaker verification, LLM, history or frontend work.
+- Preserve raw transcript exactly. Command matching normalization is separate
+  from STT normalization; canonical command is a third, proposed value.
+- Resolver scores are heuristic match scores, never probabilities, calibrated
+  confidence, STT confidence or authorization.
+- Tharism Infer is a user-observed ASR error for Taare Zameen Par, not a
+  pronunciation. It always requires confirmation; fuzzy/ambiguous/unknown,
+  negated, incomplete or compound requests must not be silently accepted.
+- Keep vocabulary independently defined. Do not derive aliases from every seed
+  sentence or repeatedly tune rules to perfect development scores.
+- Label the seed synthetic development/test text, not research training data.
+  Report metric numerators, denominators and percentages, coverage and false
+  acceptance. No fabricated recording, result or publication claim.
+- Future audio collection requires separate consent, restricted identity mapping
+  and speaker-disjoint train/validation/test splits. Collect no audio in 3B.

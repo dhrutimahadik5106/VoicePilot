@@ -78,3 +78,26 @@ Cancellation remains cooperative around native operations.
 Silence, VAD and vocabulary bias can affect endings and multilingual speech.
 Accuracy and speed are not guaranteed. No GPU or larger-model assumption is made,
 and no new benchmark or improvement is claimed. Phase 4 remains unimplemented.
+
+## Phase 3B: domain interpretation
+
+app/commands is a text-only boundary independent of audio/model initialization.
+models.py defines versioned dataset and resolution contracts; registry.py loads
+explicit versioned vocabulary and intent templates; resolver.py performs
+full-command matching and conservative entity suggestions. dataset.py validates
+rows/schema; evaluate.py reports exact-count development metrics; cli.py exposes
+resolve, validate-dataset and evaluate. None can execute proposals.
+
+An existing STT result can be passed to resolve_stt, which consumes its unchanged
+raw_transcript. Command normalization uses NFC, case-folding and punctuation/
+whitespace handling for matching. Canonical command is a separate proposal;
+it is not written back into STT. Heuristic scores never confer execution rights.
+
+Exact unambiguous patterns can resolve; unknown, negated, compound, incomplete,
+ambiguous and fuzzy input requires abstention/confirmation. Observed ASR errors
+retain provenance and always require confirmation. No history, execution adapter,
+speaker verification, LLM or frontend is introduced.
+
+Versioned aliases and intent grammar are independent of the 80-row synthetic
+seed. Tests block network, hardware/model imports and system-action functions.
+Seed evaluation is not held-out research evidence or raw ASR accuracy.
