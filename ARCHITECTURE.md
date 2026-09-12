@@ -122,3 +122,29 @@ before sanitization; output_safety attaches it on rejection. The service retains
 across its idempotent gate and uses actual PCM duration. The CLI displays reason codes
 normally and the summary only with --safety-diagnostics. Rejected decoder text is
 discarded, including private diagnostics. Cancellation clears the numerical summary. No rejection rules or thresholds changed for this observability work.
+
+## Phase 3D shared audio preparation and controlled comparison
+
+`audio_preprocessing.mono_pcm16` owns channel averaging and PCM round/clip behavior.
+Both WAV decoding and engine preparation use it. `prepare_audio` owns PCM scaling,
+existing decoder delegation, final dtype/shape/finite validation and C-contiguity.
+The WAV container reader remains in the service; path validation wraps the shared
+seekable-stream reader. Explicit disk saving and the BytesIO runner use the same
+PCM16 writer. Neither stream codec opens a filesystem path itself.
+
+The parity runner requires Enter consent, captures once, verifies exact WAV PCM16
+preservation, and calls the service twice with direct and round-tripped inputs.
+A comparison engine snapshots the actual prepared arrays immediately before model
+loading/inference. One immutable settings snapshot forces cached-only loading;
+one model instance is reused and branch order can be reversed. Source duration is
+never replaced by resampled duration. Optional numerical duration_after_vad is also
+retained on successful results, and cancellation clears it with other diagnostics.
+No rejection policy changes are introduced.
+
+Only numerical/structural comparisons and safe result metadata leave the runner;
+no hashes, audio samples, files or history. Successful text requires an explicit
+flag; rejected text never appears. Cancellation releases capture/result references
+and clears numerical snapshots. Existing recordings are never inspected. Earlier
+separate captures do not establish path inequality; synthetic fakes establish
+routing parity only, and numerical equality cannot rule out backend nondeterminism.
+No accuracy improvement is claimed or later project phase introduced.

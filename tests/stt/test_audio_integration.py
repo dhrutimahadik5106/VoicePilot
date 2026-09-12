@@ -37,6 +37,7 @@ socket.socket.connect = denied
 socket.create_connection = denied
 import app.stt, app.stt.contracts, app.stt.models
 import app.stt.faster_whisper_engine, app.stt.service, app.stt.cli
+import app.stt.audio_preprocessing, app.stt.parity
 from app.core.config import Settings
 from app.stt.faster_whisper_engine import FasterWhisperEngine
 os.chdir(sys.argv[1])

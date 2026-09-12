@@ -301,3 +301,68 @@ At budget exhaustion, counts describe consumed output rather than unseen future
 segments; token count is null to avoid further processing of oversized output.
 Per-segment metadata is capped at 4096 entries. These are engineering diagnostics,
 not calibrated confidence or proof that the audio contains no speech.
+
+## Phase 3D: controlled audio-path parity
+
+Earlier direct and saved-WAV results were separate captures (7.488s and 9.728s),
+so they cannot prove path inequality. This experiment captures once and compares
+that exact PCM through direct STT and a WAV round-trip entirely in BytesIO.
+It never opens existing diagnostic recordings or saves the new capture.
+
+Run explicitly from the repository in PowerShell:
+
+```powershell
+.\venv\Scripts\python.exe -m app.stt.parity --seconds 10 --language en
+```
+
+Press Enter to consent to one capture and two local transcriptions. During capture,
+Enter stops and c/Ctrl+C cancels. A finite duration cap always applies. The runner
+uses one frozen settings snapshot, one model instance, identical language/decoding/
+VAD settings, and cached model files only, even if normal STT allows downloads.
+A missing cache produces failed STT status; the runner never enables downloads.
+It preserves the configured VAD state; use the normal VAD-enabled configuration
+for this experiment (remove any earlier temporary VAD-disable override).
+
+Successful transcripts are hidden unless explicitly requested:
+
+```powershell
+.\venv\Scripts\python.exe -m app.stt.parity --seconds 10 --language en --show-successful-transcripts
+```
+
+To run the WAV branch before the direct branch, add `--reverse-order` to either
+command. Each invocation captures once; a later reversed invocation is a new
+capture, while both branches within that invocation share exactly one recording.
+The first call may include model loading; compare inference and total processing
+separately. Timings are not transcription-accuracy measurements.
+
+The JSON report contains only source rate/channels/frames/duration, dtype/shape,
+RMS and peak, prepared dtype/shape/duration/RMS/peak, exact PCM-container preservation,
+prepared-array equality and maximum absolute difference, both STT statuses/reason
+codes/VAD durations/segment counts/timings, and successful-transcription equality.
+RMS/peak use full-scale units (int16 divided by 32768); source statistics combine
+channels, prepared statistics describe 16 kHz mono. Prepared arrays are snapshots
+of the actual inputs immediately before the model call, not separately recomputed
+approximations. No sample values or persistent audio hashes are printed.
+
+`pcm16_preserved=true`, `prepared_equal=true`, and `max_absolute_difference=0`
+establish exact input parity for that capture. They do not guarantee identical
+model output if backend execution is nondeterministic. `transcription_equal` is
+null unless both results succeed; two cleared rejected transcripts are not counted
+as equal. Missing measurements are null; unequal prepared shapes have no maximum
+difference. Rejected segment counts cover consumed output at budget cutoff.
+Cancellation emits no report and releases audio/results; numerical array snapshots
+are cleared. Python memory is not guaranteed securely erased. Rejected transcripts
+remain inaccessible under every display option. Successful transcript display is
+explicit and JSON-escaped. No resolver or command execution is involved.
+
+Shared preprocessing returns finite, contiguous, one-dimensional float32 mono at
+16 kHz. Source duration remains original frames/source rate. Mono PCM16 behavior
+is unchanged. Stereo uses the existing WAV round-to-even convention; at 16 kHz the
+maximum change from the old direct path is half an int16 PCM unit (1/65536 at full
+scale). This tiny difference is not established as the cause of the reported failure.
+No gain amplification, normalization, denoising, trimming, new VAD settings or
+transcript correction is added. Existing explicit WAV saving remains available.
+
+Synthetic tests with fake capture, deterministic resampling and fake STT/VAD prove
+routing parity, not real Whisper/VAD accuracy or real resampling quality. No accuracy
+improvement is claimed. Accuracy requires a separately consented evaluation dataset.

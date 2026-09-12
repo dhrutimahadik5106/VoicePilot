@@ -8,6 +8,7 @@ from uuid import UUID, uuid4
 import numpy as np
 
 from app.audio.models import AudioFormat, RecordedAudio
+from app.stt.audio_preprocessing import mono_pcm16
 from app.core.config import Settings
 from app.stt.output_safety import apply_output_safety
 from app.stt.contracts import SpeechToTextEngine, TranscriptionError
@@ -29,17 +30,37 @@ def read_pcm_wav(path: Path, max_duration: float) -> RecordedAudio:
         if path.stat().st_size > 48000 * 8 * 4 * max_duration + 65536:
             raise TranscriptionError(Code.AUDIO_TOO_LONG)
         with path.open("rb") as source:
-            with wave.open(source, "rb") as wav:
-                rate, channels, width, count = wav.getframerate(), wav.getnchannels(), wav.getsampwidth(), wav.getnframes()
-                if wav.getcomptype() != "NONE" or not 8000 <= rate <= 48000 or not 1 <= channels <= 8 or width not in (1, 2, 3, 4):
-                    raise TranscriptionError(Code.UNSUPPORTED_AUDIO)
-                if count == 0:
-                    raise TranscriptionError(Code.EMPTY_AUDIO)
-                if count / rate > max_duration:
-                    raise TranscriptionError(Code.AUDIO_TOO_LONG)
-                raw = wav.readframes(count)
-                if len(raw) != count * channels * width:
-                    raise TranscriptionError(Code.INVALID_WAV)
+            return read_pcm_wav_stream(source, max_duration)
+    except TranscriptionError:
+        raise
+    except FileNotFoundError:
+        raise TranscriptionError(Code.FILE_NOT_FOUND) from None
+    except PermissionError:
+        raise TranscriptionError(Code.PERMISSION_DENIED) from None
+    except (OSError, ValueError, EOFError, wave.Error):
+        raise TranscriptionError(Code.INVALID_WAV) from None
+
+
+def read_pcm_wav_stream(source, max_duration: float) -> RecordedAudio:
+    """Validate/decode a caller-owned seekable WAV; never opens a path."""
+    try:
+        start = source.tell()
+        source.seek(0, 2)
+        size = source.tell() - start
+        source.seek(start)
+        if size > 48000 * 8 * 4 * max_duration + 65536:
+            raise TranscriptionError(Code.AUDIO_TOO_LONG)
+        with wave.open(source, "rb") as wav:
+            rate, channels, width, count = wav.getframerate(), wav.getnchannels(), wav.getsampwidth(), wav.getnframes()
+            if wav.getcomptype() != "NONE" or not 8000 <= rate <= 48000 or not 1 <= channels <= 8 or width not in (1, 2, 3, 4):
+                raise TranscriptionError(Code.UNSUPPORTED_AUDIO)
+            if count == 0:
+                raise TranscriptionError(Code.EMPTY_AUDIO)
+            if count / rate > max_duration:
+                raise TranscriptionError(Code.AUDIO_TOO_LONG)
+            raw = wav.readframes(count)
+            if len(raw) != count * channels * width:
+                raise TranscriptionError(Code.INVALID_WAV)
         if width == 1:
             pcm = (np.frombuffer(raw, dtype=np.uint8).astype(np.float32) - 128) * 256
         elif width == 2:
@@ -51,12 +72,10 @@ def read_pcm_wav(path: Path, max_duration: float) -> RecordedAudio:
             pcm = integers.astype(np.float32) / 256
         else:
             pcm = np.frombuffer(raw, dtype="<i4").astype(np.float32) / 65536
-        mono = np.rint(pcm.reshape(-1, channels).mean(axis=1)).clip(-32768, 32767).astype(np.int16)
+        mono = mono_pcm16(pcm.reshape(-1, channels))
         return RecordedAudio(format=AudioFormat(sample_rate=rate), samples=mono[:, None])
     except TranscriptionError:
         raise
-    except FileNotFoundError:
-        raise TranscriptionError(Code.FILE_NOT_FOUND) from None
     except PermissionError:
         raise TranscriptionError(Code.PERMISSION_DENIED) from None
     except (OSError, ValueError, EOFError, wave.Error):

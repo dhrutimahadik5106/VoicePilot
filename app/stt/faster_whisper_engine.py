@@ -1,16 +1,13 @@
 """Lazy local Faster-Whisper adapter; no model/audio/transcript logging."""
-import io
 import logging
-import wave
 from contextlib import contextmanager
 from pathlib import Path
 from threading import Event, Lock, RLock
 from time import perf_counter
 
-import numpy as np
-
+from app.stt.audio_preprocessing import prepare_audio
 from app.core.config import Settings
-from app.stt.output_safety import OutputBudget, apply_output_safety, reject
+from app.stt.output_safety import OutputBudget, apply_output_safety, reject, _number
 from app.stt.contracts import TranscriptionError
 from app.stt.models import (
     SafeTranscriptionError, TranscriptSegment, TranscriptionErrorCode as Code,
@@ -78,25 +75,8 @@ class FasterWhisperEngine:
         )
 
     def _prepare_audio(self, audio):
-        mono = audio.samples.astype(np.float32).mean(axis=1)
-        if audio.format.sample_rate == 16000:
-            return mono / np.float32(32768.0)
-        # Keep temporary WAV bytes entirely in memory. PyAV's resampler is
-        # supplied by Faster-Whisper; do not add a resampling dependency.
-        with io.BytesIO() as buffer:
-            with wave.open(buffer, "wb") as output:
-                output.setnchannels(1)
-                output.setsampwidth(2)
-                output.setframerate(audio.format.sample_rate)
-                output.writeframes(np.rint(mono).clip(-32768, 32767).astype("<i2").tobytes())
-            buffer.seek(0)
-            converted = self._decoder(buffer)
-        if (not isinstance(converted, np.ndarray) or converted.dtype != np.float32
-                or converted.ndim != 1 or not len(converted)
-                or len(converted) > 16000 * self.settings.stt_max_duration_seconds
-                or not np.isfinite(converted).all()):
-            raise TranscriptionError(Code.UNSUPPORTED_AUDIO)
-        return converted
+        return prepare_audio(audio, decoder=self._decoder,
+                             max_duration=self.settings.stt_max_duration_seconds)
 
     def transcribe(self, request: TranscriptionRequest,
                    cancel: Event | None = None) -> TranscriptionResult:
@@ -189,6 +169,7 @@ class FasterWhisperEngine:
                     segments=tuple(segments), processing_duration=max(0.0, self._clock() - started),
                     model_load_duration=model_load_duration, inference_duration=inference_duration,
                     cold_start=cold_start, source_audio_duration=request.audio.duration,
+                    duration_after_vad=_number(getattr(info, "duration_after_vad", None), nonnegative=True),
                     model_name=self.settings.whisper_model, device=self.settings.whisper_device,
                     compute_type=self.settings.whisper_compute_type, status=TranscriptionStatus.SUCCEEDED,
                 )

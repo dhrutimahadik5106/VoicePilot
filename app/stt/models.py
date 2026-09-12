@@ -129,6 +129,7 @@ class TranscriptionResult(BaseModel):
     error: SafeTranscriptionError | None = None
     rejection_reasons: tuple[SafetyReason, ...] = ()
     safety_summary: SafetySummary | None = None
+    duration_after_vad: float | None = Field(default=None, ge=0, allow_inf_nan=False)
     _diagnostics: object = PrivateAttr(default=None)
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 

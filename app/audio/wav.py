@@ -43,13 +43,18 @@ def save_wav(audio: RecordedAudio, directory: Path = Path("recordings"),
     try:
         destination_dir.mkdir(parents=True, exist_ok=True)
         with target.open("wb" if overwrite else "xb") as handle:
-            with wave.open(handle, "wb") as output:
-                output.setnchannels(audio.format.channels)
-                output.setsampwidth(2)
-                output.setframerate(audio.format.sample_rate)
-                output.writeframes(audio.samples.astype("<i2", copy=False).tobytes())
+            write_pcm_wav(audio, handle)
         return target
     except FileExistsError:
         raise AudioError(ErrorCode.FILE_EXISTS) from None
     except OSError:
         raise AudioError(ErrorCode.EXPORT_FAILED) from None
+
+
+def write_pcm_wav(audio: RecordedAudio, stream):
+    """Encode exact PCM16 into a caller-owned stream, without opening any file."""
+    with wave.open(stream, "wb") as output:
+        output.setnchannels(audio.format.channels)
+        output.setsampwidth(2)
+        output.setframerate(audio.format.sample_rate)
+        output.writeframes(audio.samples.astype("<i2", copy=False).tobytes())

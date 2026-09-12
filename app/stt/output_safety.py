@@ -134,13 +134,13 @@ def apply_output_safety(result, settings, cancel=None, *, duration_after_vad=Non
         cancelled = result.model_copy(update={
             "status": Status.CANCELLED, "text": "", "segments": (),
             "language_probability": None, "error": SafeTranscriptionError(code=Code.CANCELLED),
-            "rejection_reasons": (), "safety_summary": None,
+            "rejection_reasons": (), "safety_summary": None, "duration_after_vad": None,
         })
         cancelled._diagnostics = None
         return cancelled
     if result.status != Status.SUCCEEDED:
         if result.status != Status.UNUSABLE_AUDIO:
-            result = result.model_copy(update={"safety_summary": None, "rejection_reasons": ()})
+            result = result.model_copy(update={"safety_summary": None, "rejection_reasons": (), "duration_after_vad": None})
             result._diagnostics = None
         return result
     budget = OutputBudget(settings)
