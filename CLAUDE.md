@@ -66,11 +66,17 @@
   and enforce output budgets. Never duplicate independent rejection rules.
 - Reject whole unusable outputs with empty public transcripts and status
   unusable_audio. Never remove repetitions to salvage a command.
-- Rejected decoder diagnostics must remain bounded and private in memory, absent
-  from repr, ordinary serialization, CLI, logs, exceptions and resolver output.
+- Discard rejected decoder text, including private diagnostics. Retain only bounded
+  numerical evidence; no rejected text in repr, serialization, CLI, logs or resolver output.
   Cancellation discards diagnostics; never save rejected audio or text.
 - Block every non-successful STT status from resolution. Explicit text input
   bypasses STT provenance. No command execution or Phase 4 is authorized.
 - Safety thresholds are unvalidated engineering defaults. Use synthetic/fake
   tests only; document false rejection/acceptance risks and never fabricate
   research performance. See docs/decisions/0005-stt-output-safety.md.
+
+- Phase 3C numerical diagnostics are approved without changing acceptance rules.
+  --safety-diagnostics may show only the allowlisted SafetySummary on rejection.
+  Preserve reason codes and bounded numerical evidence before sanitization.
+  Never display, log or serialize private decoder text. Cancellation clears both
+  numerical and private diagnostics. Wait for manual evidence before policy changes.

@@ -83,6 +83,32 @@ class TranscriptSegment(BaseModel):
         return self
 
 
+SafetyReason = Literal["empty_output", "repeated_word", "repeated_phrase",
+                                    "token_limit", "character_limit", "no_speech",
+                                    "output_budget_exceeded", "safety_gate_error"]
+
+
+class SafetySegmentMetadata(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+    no_speech_prob: float | None = Field(default=None, ge=0, le=1, allow_inf_nan=False)
+    avg_logprob: float | None = Field(default=None, allow_inf_nan=False)
+
+
+class SafetySummary(BaseModel):
+    """Allowlisted numbers only; counts describe consumed output at budget cutoff."""
+    model_config = ConfigDict(frozen=True, extra="forbid")
+    rejection_reasons: tuple[SafetyReason, ...]
+    actual_audio_duration: float = Field(ge=0, allow_inf_nan=False)
+    original_segment_count: int = Field(ge=0)
+    normalized_token_count: int | None = Field(default=None, ge=0)
+    character_count: int = Field(ge=0)
+    token_limit: float = Field(ge=0, allow_inf_nan=False)
+    character_limit: float = Field(ge=0, allow_inf_nan=False)
+    segment_metadata: tuple[SafetySegmentMetadata, ...] = Field(default=(), max_length=4096)
+    duration_after_vad: float | None = Field(default=None, ge=0, allow_inf_nan=False)
+    output_budget_exceeded: bool
+
+
 class TranscriptionResult(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
     audio_id: UUID
@@ -101,9 +127,8 @@ class TranscriptionResult(BaseModel):
     compute_type: str
     status: TranscriptionStatus
     error: SafeTranscriptionError | None = None
-    rejection_reasons: tuple[Literal["empty_output", "repeated_word", "repeated_phrase",
-                                    "token_limit", "character_limit", "no_speech",
-                                    "output_budget_exceeded", "safety_gate_error"], ...] = ()
+    rejection_reasons: tuple[SafetyReason, ...] = ()
+    safety_summary: SafetySummary | None = None
     _diagnostics: object = PrivateAttr(default=None)
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 

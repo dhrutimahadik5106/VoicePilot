@@ -82,6 +82,15 @@ class TranscriptionService:
         result = self.engine.transcribe(request, cancel=cancel)
         # Duration is measured from the supplied PCM, not trusted engine metadata.
         result = result.model_copy(update={"source_audio_duration": audio.duration})
+        if result.safety_summary is not None:
+            summary = result.safety_summary.model_copy(update={
+                "actual_audio_duration": audio.duration,
+                "token_limit": max(self.settings.stt_safety_min_tokens,
+                                   self.settings.stt_safety_tokens_per_second * audio.duration),
+                "character_limit": max(self.settings.stt_safety_min_characters,
+                                       self.settings.stt_safety_characters_per_second * audio.duration),
+            })
+            result = result.model_copy(update={"safety_summary": summary})
         return apply_output_safety(result, self.settings, cancel)
 
     def transcribe_file(self, path: Path, *, language=None, cancel: Event | None = None,

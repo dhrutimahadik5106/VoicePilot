@@ -1,18 +1,10 @@
 """Shared deterministic output gate. Never logs or repairs decoder content."""
 import unicodedata
+import math
 
 from app.stt.models import (
-    SafeTranscriptionError, TranscriptionErrorCode as Code, TranscriptionStatus as Status,
+    SafetySummary, SafetySegmentMetadata, SafeTranscriptionError, TranscriptionErrorCode as Code, TranscriptionStatus as Status,
 )
-
-
-class _Diagnostics:
-    """Private bounded prefix only; default object repr never contains its contents."""
-    __slots__ = ("_raw", "complete")
-
-    def __init__(self, raw, complete):
-        self._raw = raw[:8192]
-        self.complete = complete and len(raw) <= 8192
 
 
 class OutputBudget:
@@ -21,22 +13,61 @@ class OutputBudget:
         self.settings = settings
         self.count = 0
         self.characters = 0
-        self._prefix = ""
         self.exhausted = False
+        self.token_count = 0
+        self.normalized_characters = 0
+        self.nonempty_segments = 0
+        self.metadata = []
 
     def __repr__(self):
         return "<OutputBudget>"
 
-    def add(self, text):
+    def add(self, text, segment=None):
         self.count += 1
         self.characters += len(text)
-        self._prefix += text[:max(0, 8192 - len(self._prefix))]
         self.exhausted = (self.count > self.settings.stt_safety_max_segments
                           or self.characters > self.settings.stt_safety_max_output_characters)
+        if len(self.metadata) < 4096:
+            self.metadata.append(SafetySegmentMetadata(
+                no_speech_prob=_number(getattr(segment, "no_speech_prob", None), probability=True),
+                avg_logprob=_number(getattr(segment, "avg_logprob", None)),
+            ))
+        if not self.exhausted:
+            stripped = text.strip()
+            self.normalized_characters += len(stripped)
+            self.nonempty_segments += bool(stripped)
+            self.token_count += len(_tokens(stripped))
         return not self.exhausted
 
-    def diagnostics(self):
-        return _Diagnostics(self._prefix, not self.exhausted and self.characters <= 8192)
+    def summary(self, reasons, duration, duration_after_vad=None):
+        return SafetySummary(
+            rejection_reasons=tuple(reasons), actual_audio_duration=duration,
+            original_segment_count=self.count,
+            normalized_token_count=None if self.exhausted else self.token_count,
+            character_count=max(self.characters, self.normalized_characters
+                                + max(0, self.nonempty_segments - 1)),
+            token_limit=max(self.settings.stt_safety_min_tokens,
+                            self.settings.stt_safety_tokens_per_second * duration),
+            character_limit=max(self.settings.stt_safety_min_characters,
+                                self.settings.stt_safety_characters_per_second * duration),
+            segment_metadata=tuple(self.metadata),
+            duration_after_vad=_number(duration_after_vad, nonnegative=True),
+            output_budget_exceeded=self.exhausted,
+        )
+
+def _number(value, *, probability=False, nonnegative=False):
+    # Do not stringify arbitrary backend values or allow NaN/inf into JSON.
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    try:
+        finite = math.isfinite(value)
+    except OverflowError:
+        return None
+    if not finite or (probability and not 0 <= value <= 1):
+        return None
+    if nonnegative and value < 0:
+        return None
+    return float(value)
 
 
 def _tokens(text):
@@ -87,37 +118,41 @@ def rejection_reasons(result, settings):
     return tuple(reasons)
 
 
-def reject(result, reasons, diagnostics=None):
+def reject(result, reasons, summary=None):
     rejected = result.model_copy(update={
         "status": Status.UNUSABLE_AUDIO, "text": "", "segments": (),
         "language_probability": None, "error": SafeTranscriptionError(code=Code.UNUSABLE_AUDIO),
-        "rejection_reasons": tuple(reasons),
+        "rejection_reasons": tuple(reasons), "safety_summary": summary,
     })
-    rejected._diagnostics = diagnostics
+    rejected._diagnostics = None
     return rejected
 
 
-def apply_output_safety(result, settings, cancel=None):
+def apply_output_safety(result, settings, cancel=None, *, duration_after_vad=None):
     """Fail closed for every engine; repeated application is safe."""
     if cancel is not None and cancel.is_set():
         cancelled = result.model_copy(update={
             "status": Status.CANCELLED, "text": "", "segments": (),
             "language_probability": None, "error": SafeTranscriptionError(code=Code.CANCELLED),
-            "rejection_reasons": (),
+            "rejection_reasons": (), "safety_summary": None,
         })
         cancelled._diagnostics = None
         return cancelled
     if result.status != Status.SUCCEEDED:
         if result.status != Status.UNUSABLE_AUDIO:
+            result = result.model_copy(update={"safety_summary": None, "rejection_reasons": ()})
             result._diagnostics = None
         return result
     budget = OutputBudget(settings)
     try:
         for segment in result.segments:
-            if not budget.add(segment.text):
-                return reject(result, ("output_budget_exceeded",), budget.diagnostics())
+            if not budget.add(segment.text, segment):
+                return reject(result, ("output_budget_exceeded",),
+                              budget.summary(("output_budget_exceeded",), result.source_audio_duration, duration_after_vad))
         reasons = rejection_reasons(result, settings)
-        return reject(result, reasons, budget.diagnostics()) if reasons else result
+        return reject(result, reasons,
+                      budget.summary(reasons, result.source_audio_duration, duration_after_vad)) if reasons else result
     except Exception:
         # Never stringify exceptions: validation/backend errors can embed text.
-        return reject(result, ("safety_gate_error",), budget.diagnostics())
+        return reject(result, ("safety_gate_error",),
+                      budget.summary(("safety_gate_error",), result.source_audio_duration, duration_after_vad))

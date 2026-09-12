@@ -52,3 +52,12 @@ def test_safe_stt_workflow_retains_entities(resolver):
     assert proposal.entities == {"application": "Spotify", "media": "Taare Zameen Par"}
     assert proposal.canonical_command == "Play Taare Zameen Par on Spotify"
     assert not proposal.requires_confirmation and not proposal.execution_permitted
+
+
+def test_numerical_diagnostics_never_reach_resolver_as_text(resolver):
+    from tests.stt.test_safety_diagnostics import rejected, SECRET
+    proposal = resolver.resolve_stt(rejected())
+    assert proposal.raw_transcript == proposal.normalized_transcript == ""
+    assert proposal.intent is None and not proposal.execution_permitted
+    assert SECRET not in proposal.model_dump_json()
+    assert SECRET not in repr(proposal)

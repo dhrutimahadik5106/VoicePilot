@@ -15,12 +15,16 @@ from app.stt.models import TranscriptionStatus
 from app.stt.service import TranscriptionService
 
 
-def display_result(result, write):
+def display_result(result, write, *, safety_diagnostics=False):
     if result.status == TranscriptionStatus.CANCELLED:
         write("CANCELLED. Transcript discarded.")
         return 0
     if result.status != TranscriptionStatus.SUCCEEDED:
         write(f"STT error: {result.error_code.value}")
+        if result.status == TranscriptionStatus.UNUSABLE_AUDIO:
+            write("Safety reasons: " + ", ".join(result.rejection_reasons))
+            if safety_diagnostics and result.safety_summary is not None:
+                write(result.safety_summary.model_dump_json(indent=2))
         return 1
     # Only sanitize terminal controls; never truncate or rewrite recognized words.
     text = "".join(char if char.isprintable() or char == "\n" else " " for char in result.normalized_transcript)
@@ -45,6 +49,8 @@ def main(argv=None, *, settings=None, engine=None, recorder=None,
     mic_parser.add_argument("--silence-seconds", type=float, help="Opt in to stop after this much silence following speech")
     mic_parser.add_argument("--session", action="store_true", help="Repeat deliberate captures using one loaded model")
     for subparser in (file_parser, mic_parser):
+        subparser.add_argument("--safety-diagnostics", action="store_true",
+                               help="Display numerical rejection evidence only; does not change safety")
         subparser.add_argument("--language", help="Language code such as en, hi, mr, or auto")
     args = parser.parse_args(argv)
     owned_engine = None
@@ -68,7 +74,8 @@ def main(argv=None, *, settings=None, engine=None, recorder=None,
             engine = owned_engine
         service = TranscriptionService(settings, engine)
         if args.command == "file":
-            return display_result(service.transcribe_file(args.path, language=args.language), write)
+            return display_result(service.transcribe_file(args.path, language=args.language), write,
+                                  safety_diagnostics=args.safety_diagnostics)
 
         recorder = recorder if recorder is not None else SoundDeviceRecorder(settings)
         while True:
@@ -102,7 +109,7 @@ def main(argv=None, *, settings=None, engine=None, recorder=None,
             result = service.transcribe_audio(captured.audio, language=args.language)
             # Drop the capture reference before asking for another deliberate action.
             del captured
-            code = display_result(result, write)
+            code = display_result(result, write, safety_diagnostics=args.safety_diagnostics)
             if code or result.status == TranscriptionStatus.CANCELLED or not args.session:
                 return code
             del result

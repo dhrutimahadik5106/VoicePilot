@@ -109,7 +109,16 @@ idempotent policy for every engine) -> successful STT only -> optional text prop
 The engine collects optional segment no-speech/logprob metadata and bounds generator
 consumption. The service uses actual PCM duration for length checks. All non-success
 statuses are blocked by resolve_stt without reading transcript contents.
-unusable_audio exposes empty transcripts and safe reason codes. Only a bounded
-private in-memory object retains decoder text; cancellation discards it. No persistence,
+unusable_audio exposes empty transcripts and safe reason codes. Only bounded
+numerical evidence is retained; cancellation discards it. No persistence,
 execution or later-phase integration is added. Explicit text resolution bypasses STT
 provenance. See decision 0005 for exact defaults, limitations and privacy boundaries.
+
+### Numerical rejection evidence
+
+SafetySummary is a frozen, allowlisted model with numbers, safe reason codes,
+booleans and bounded numerical segment metadata only. OutputBudget collects evidence
+before sanitization; output_safety attaches it on rejection. The service retains it
+across its idempotent gate and uses actual PCM duration. The CLI displays reason codes
+normally and the summary only with --safety-diagnostics. Rejected decoder text is
+discarded, including private diagnostics. Cancellation clears the numerical summary. No rejection rules or thresholds changed for this observability work.

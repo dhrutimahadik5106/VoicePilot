@@ -270,8 +270,8 @@ Retry with a clean capture. Whole results are rejected; words are never removed
 to salvage a command. Successful raw and normalized transcripts remain separate.
 Short repetition such as "stop, stop" remains valid.
 
-Rejected decoder text is retained only as a bounded private in-memory diagnostic
-prefix, never in CLI output, logs, ordinary serialization, resolver output or files.
+Rejected decoder text is discarded. Only bounded numerical evidence is retained,
+with no rejected text in CLI output, logs, serialization, resolver output or files.
 Cancellation discards diagnostics. Audio is not saved by STT. The text-only resolver
 bypasses STT provenance; manually typed commands do not validate speech recognition.
 
@@ -280,3 +280,24 @@ configuration names, privacy limits and evaluation methodology. Defaults are
 unvalidated engineering thresholds; accuracy and hallucination detection are not
 guaranteed, especially across languages. No microphone/model test or research
 accuracy claim is implied. Existing manual STT commands are unchanged.
+
+### Safe rejection diagnostics
+
+Rejected STT output now includes safe reason codes. To reproduce a rejection and
+see numerical evidence, explicitly run in PowerShell:
+
+    .\venv\Scripts\python.exe -m app.stt.cli microphone --seconds 10 --language en --safety-diagnostics
+
+For session mode, replace --seconds 10 with --session. Enter stops capture;
+c/Ctrl+C cancels. The diagnostics flag does not change recording consent, model
+loading, decoding, thresholds or acceptance. Rejected transcript text is never
+displayed. Successful output remains unchanged. No audio is saved.
+
+The summary contains rejection reasons, actual PCM duration, original consumed
+segment count, normalized token and character counts, applicable length limits,
+bounded numerical per-segment no_speech_prob/avg_logprob values, optional backend
+duration_after_vad, and output-budget status. Missing values are null.
+At budget exhaustion, counts describe consumed output rather than unseen future
+segments; token count is null to avoid further processing of oversized output.
+Per-segment metadata is capped at 4096 entries. These are engineering diagnostics,
+not calibrated confidence or proof that the audio contains no speech.

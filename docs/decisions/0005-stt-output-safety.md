@@ -66,17 +66,13 @@ signals (compression ratio and RMS are not consumed by this policy).
 
 ## Privacy
 
-Rejected decoder text exists only in a private in-memory diagnostic object attached
-through Pydantic PrivateAttr, excluded from repr, ordinary model dumps/JSON, CLI,
-logs, exceptions and resolver output. It retains at most 8192 Unicode characters
-as an exact decoder prefix; complete=false marks truncation or budget exhaustion.
-Diagnostic and budget object repr never include text. There is no export, history,
-file write or rejected-audio persistence. Backend transcript logging remains
-suppressed. Cancellation removes the diagnostic reference. Python memory is not
-securely zeroized; a debugger, explicit private-attribute access or memory dump
-can still inspect in-memory content. This is not a security boundary against code
-running in the same process. Successful transcripts retain their existing explicit
-display/serialization behavior.
+Rejected decoder text is discarded, including private diagnostics. Only the bounded
+numerical summary is retained. No rejected text appears in repr, serialization, CLI,
+logs, exceptions or resolver output. There is no export, history, file write or
+rejected-audio persistence. Backend transcript logging remains suppressed.
+Cancellation removes the summary. Python memory is not securely zeroized; this is
+not a security boundary against code running in the same process. Successful
+transcripts retain their existing explicit display/serialization behavior.
 
 ## Validation and research methodology
 
@@ -112,3 +108,30 @@ result, which is conservative for mixed speech/noise captures. Finite output bud
 bound collection after yielded segments, not native decoder memory allocation, a huge
 single yielded string, or a generator blocked inside its next call. No inference
 watchdog/process isolation is added. No persistence is added in this phase.
+
+## Safe numerical diagnostics refinement
+
+Manual normal-speech captures returned unusable_audio without showing which rule
+rejected them. CLI display was hiding existing reason codes. No specific rejection
+cause was established; this refinement changes observability only.
+
+SafetySummary retains exactly: rejection_reasons, actual_audio_duration,
+original_segment_count, normalized_token_count, character_count, token_limit,
+character_limit, segment_metadata (no_speech_prob and avg_logprob only),
+duration_after_vad, and output_budget_exceeded. Values are numeric, booleans,
+nulls or validated reason codes; arbitrary strings and transcript fields are forbidden.
+Metadata contains at most the first 4096 consumed segments, in consumed order at budget cutoff, otherwise chronological segment order.
+Available metadata is not paired across segments. Invalid optional diagnostic-only
+VAD duration is represented as null, without changing acceptance.
+
+Normal rejection display includes reason codes; --safety-diagnostics additionally
+prints this summary as JSON. Successful output is unchanged. No private decoder text
+is accessed by the display path. Cancellation discards numerical and private diagnostics.
+At output-budget cutoff, segment count includes the segment that crossed the budget,
+character count covers consumed raw text (and any greater assembled length already
+counted), token count is null, and unconsumed output is unknown. Counts must not be
+described as totals for the complete unconsumed decoder stream.
+
+Thresholds and the rejection policy remain unchanged. A reproduction is still needed
+to identify the reason affecting the user's real recordings. No microphone/model test,
+download, research result or policy correction is included in this change.

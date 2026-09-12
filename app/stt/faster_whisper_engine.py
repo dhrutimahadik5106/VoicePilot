@@ -152,7 +152,7 @@ class FasterWhisperEngine:
                 for segment in stream:
                     if cancel is not None and cancel.is_set():
                         raise TranscriptionError(Code.CANCELLED)
-                    if not budget.add(segment.text):
+                    if not budget.add(segment.text, segment):
                         break
                     words = ()
                     if self.settings.stt_word_timestamps and segment.words:
@@ -175,7 +175,9 @@ class FasterWhisperEngine:
                         inference_duration=inference_duration, cold_start=cold_start,
                     )
                     return apply_output_safety(
-                        reject(result, ("output_budget_exceeded",), budget.diagnostics()),
+                        reject(result, ("output_budget_exceeded",),
+                               budget.summary(("output_budget_exceeded",), request.audio.duration,
+                                              getattr(info, "duration_after_vad", None))),
                         self.settings, cancel,
                     )
                 result = TranscriptionResult(
@@ -190,10 +192,8 @@ class FasterWhisperEngine:
                     model_name=self.settings.whisper_model, device=self.settings.whisper_device,
                     compute_type=self.settings.whisper_compute_type, status=TranscriptionStatus.SUCCEEDED,
                 )
-                result = apply_output_safety(result, self.settings, cancel)
-                if result.status == TranscriptionStatus.UNUSABLE_AUDIO:
-                    # Preserve decoder yield order, before chronological sorting.
-                    result._diagnostics = budget.diagnostics()
+                result = apply_output_safety(result, self.settings, cancel,
+                                             duration_after_vad=getattr(info, "duration_after_vad", None))
                 return result
         except (Exception, KeyboardInterrupt) as error:
             if isinstance(error, KeyboardInterrupt):

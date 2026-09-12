@@ -88,8 +88,7 @@ def test_synthetic_reconstruction_privacy(caplog, tmp_path):
     assert checked.status == "unusable_audio"
     assert checked.raw_transcript == checked.normalized_transcript == checked.text == ""
     assert checked.segments == ()
-    assert checked._diagnostics._raw == text
-    assert checked._diagnostics.complete
+    assert checked._diagnostics is None
     output = []
     assert display_result(checked, output.append) == 1
     for rendered in (repr(checked), str(checked), repr(checked._diagnostics),
@@ -126,8 +125,7 @@ def test_generator_budget_closes_and_bounds_diagnostics(kind):
     checked = engine.transcribe(TranscriptionRequest(audio=audio()))
     assert checked.rejection_reasons == ("output_budget_exceeded",)
     assert checked.status == "unusable_audio" and checked.text == ""
-    assert len(checked._diagnostics._raw) <= 8192
-    assert not checked._diagnostics.complete
+    assert checked._diagnostics is None
     assert model.closed
 
 
@@ -184,12 +182,12 @@ def test_endless_generator_stops_after_bounded_consumption():
     assert len(counts) == 4 and closed == [True]
 
 
-def test_repetition_across_segments_keeps_exact_private_decoder_output():
+def test_repetition_across_segments_discards_private_decoder_output():
     model = FakeModel([segment(" Google") for _ in range(8)])
     checked = FasterWhisperEngine(Settings(), model_factory=lambda *a, **kw: model).transcribe(
         TranscriptionRequest(audio=audio()))
     assert "repeated_word" in checked.rejection_reasons
-    assert checked._diagnostics._raw == " Google" * 8
+    assert checked._diagnostics is None
     assert checked.raw_transcript == ""
 
 
@@ -209,7 +207,7 @@ def test_alternate_engine_budget_and_cancellation():
     service = TranscriptionService(Settings(), Alternate())
     checked = service.transcribe_audio(audio())
     assert checked.rejection_reasons == ("output_budget_exceeded",)
-    assert len(checked._diagnostics._raw) == 8192
+    assert checked._diagnostics is None
     cancelled = service.transcribe_audio(audio(), cancel=Event())
     assert cancelled.status == "cancelled" and cancelled._diagnostics is None
 
@@ -235,14 +233,14 @@ def test_invalid_threshold_configuration(field, value):
         Settings(**{field: value})
 
 
-def test_private_diagnostics_preserve_decoder_order():
+def test_reordered_decoder_segments_discard_private_text():
     first, second = segment(" later", 1, 2), segment(" earlier", 0, 1)
     first.no_speech_prob, first.avg_logprob = .9, -2
     model = FakeModel([first, second])
     checked = FasterWhisperEngine(Settings(), model_factory=lambda *a, **kw: model).transcribe(
         TranscriptionRequest(audio=audio(3)))
     assert checked.status == "unusable_audio"
-    assert checked._diagnostics._raw == " later earlier"
+    assert checked._diagnostics is None
 
 
 def test_no_speech_evidence_must_belong_to_same_segment():
