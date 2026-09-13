@@ -110,6 +110,7 @@ class Settings(BaseSettings):
         return validate_recordings_dir(value)
 
 
+    stt_contextual_enabled: bool = False
     stt_language: str | None = None
     stt_vad_filter: bool = True
     stt_word_timestamps: bool = False
@@ -160,8 +161,8 @@ class Settings(BaseSettings):
     audio_silence_threshold: float = Field(default=0.01, gt=0, le=0.25, allow_inf_nan=False)
     stt_temperature: float = Field(default=0.0, ge=0, le=1, allow_inf_nan=False)
     stt_vad_min_silence_duration_ms: int = Field(default=1000, ge=100, le=5000)
-    stt_initial_prompt: str = Field(default="VoicePilot, Spotify, WhatsApp, Chrome, YouTube, Dhruti.", max_length=500, repr=False)
-    stt_hotwords: str = Field(default="VoicePilot Spotify WhatsApp Chrome YouTube Dhruti", max_length=300, repr=False)
+    stt_initial_prompt: str = Field(default="VoicePilot, Spotify, WhatsApp, Chrome, YouTube.", max_length=500, repr=False)
+    stt_hotwords: str = Field(default="VoicePilot Spotify WhatsApp Chrome YouTube", max_length=300, repr=False)
 
     @field_validator("audio_silence_duration_seconds", "audio_silence_threshold",
                      "stt_temperature", "stt_vad_min_silence_duration_ms", mode="before")

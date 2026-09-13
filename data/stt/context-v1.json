@@ -1,0 +1,479 @@
+{
+  "schema_version": "1.0",
+  "version": "context-v1",
+  "entries": [
+    {
+      "entry_id": "voicepilot",
+      "category": "assistant",
+      "forms": [
+        {
+          "text": "VoicePilot",
+          "language": "en",
+          "script": "Latin",
+          "kind": "canonical",
+          "provenance": "engineering_review",
+          "review_status": "reviewed",
+          "hint_eligible": true,
+          "refinement_eligible": false,
+          "requires_confirmation": true
+        },
+        {
+          "text": "वॉइसपायलट",
+          "language": "hi",
+          "script": "Devanagari",
+          "kind": "alias",
+          "provenance": "engineering_review",
+          "review_status": "reviewed",
+          "hint_eligible": true,
+          "refinement_eligible": false,
+          "requires_confirmation": true
+        },
+        {
+          "text": "व्हॉइसपायलट",
+          "language": "mr",
+          "script": "Devanagari",
+          "kind": "alias",
+          "provenance": "engineering_review",
+          "review_status": "reviewed",
+          "hint_eligible": true,
+          "refinement_eligible": false,
+          "requires_confirmation": true
+        },
+        {
+          "text": "VP",
+          "language": "mixed",
+          "script": "Latin",
+          "kind": "abbreviation",
+          "provenance": "engineering_review",
+          "review_status": "reviewed",
+          "hint_eligible": true,
+          "refinement_eligible": false,
+          "requires_confirmation": true
+        }
+      ]
+    },
+    {
+      "entry_id": "spotify",
+      "category": "application",
+      "forms": [
+        {
+          "text": "Spotify",
+          "language": "en",
+          "script": "Latin",
+          "kind": "canonical",
+          "provenance": "engineering_review",
+          "review_status": "reviewed",
+          "hint_eligible": true,
+          "refinement_eligible": false,
+          "requires_confirmation": true
+        },
+        {
+          "text": "स्पॉटिफाई",
+          "language": "hi",
+          "script": "Devanagari",
+          "kind": "alias",
+          "provenance": "engineering_review",
+          "review_status": "reviewed",
+          "hint_eligible": true,
+          "refinement_eligible": false,
+          "requires_confirmation": true
+        },
+        {
+          "text": "स्पॉटिफाय",
+          "language": "mr",
+          "script": "Devanagari",
+          "kind": "alias",
+          "provenance": "engineering_review",
+          "review_status": "reviewed",
+          "hint_eligible": true,
+          "refinement_eligible": false,
+          "requires_confirmation": true
+        }
+      ]
+    },
+    {
+      "entry_id": "chrome",
+      "category": "application",
+      "forms": [
+        {
+          "text": "Chrome",
+          "language": "en",
+          "script": "Latin",
+          "kind": "canonical",
+          "provenance": "engineering_review",
+          "review_status": "reviewed",
+          "hint_eligible": true,
+          "refinement_eligible": false,
+          "requires_confirmation": true
+        },
+        {
+          "text": "क्रोम",
+          "language": "hi",
+          "script": "Devanagari",
+          "kind": "alias",
+          "provenance": "engineering_review",
+          "review_status": "reviewed",
+          "hint_eligible": true,
+          "refinement_eligible": false,
+          "requires_confirmation": true
+        },
+        {
+          "text": "क्रोम",
+          "language": "mr",
+          "script": "Devanagari",
+          "kind": "alias",
+          "provenance": "engineering_review",
+          "review_status": "reviewed",
+          "hint_eligible": true,
+          "refinement_eligible": false,
+          "requires_confirmation": true
+        }
+      ]
+    },
+    {
+      "entry_id": "whatsapp",
+      "category": "application",
+      "forms": [
+        {
+          "text": "WhatsApp",
+          "language": "en",
+          "script": "Latin",
+          "kind": "canonical",
+          "provenance": "engineering_review",
+          "review_status": "reviewed",
+          "hint_eligible": true,
+          "refinement_eligible": false,
+          "requires_confirmation": true
+        },
+        {
+          "text": "व्हाट्सऐप",
+          "language": "hi",
+          "script": "Devanagari",
+          "kind": "alias",
+          "provenance": "engineering_review",
+          "review_status": "reviewed",
+          "hint_eligible": true,
+          "refinement_eligible": false,
+          "requires_confirmation": true
+        },
+        {
+          "text": "व्हाट्सअॅप",
+          "language": "mr",
+          "script": "Devanagari",
+          "kind": "alias",
+          "provenance": "engineering_review",
+          "review_status": "reviewed",
+          "hint_eligible": true,
+          "refinement_eligible": false,
+          "requires_confirmation": true
+        },
+        {
+          "text": "Whats App",
+          "language": "en",
+          "script": "Latin",
+          "kind": "alternate_spelling",
+          "provenance": "engineering_review",
+          "review_status": "reviewed",
+          "hint_eligible": true,
+          "refinement_eligible": false,
+          "requires_confirmation": true
+        }
+      ]
+    },
+    {
+      "entry_id": "chrome_beta",
+      "category": "application",
+      "forms": [
+        {
+          "text": "Chrome Beta",
+          "language": "en",
+          "script": "Latin",
+          "kind": "canonical",
+          "provenance": "engineering_review",
+          "review_status": "reviewed",
+          "hint_eligible": true,
+          "refinement_eligible": false,
+          "requires_confirmation": true
+        },
+        {
+          "text": "क्रोम बीटा",
+          "language": "hi",
+          "script": "Devanagari",
+          "kind": "alias",
+          "provenance": "engineering_review",
+          "review_status": "reviewed",
+          "hint_eligible": true,
+          "refinement_eligible": false,
+          "requires_confirmation": true
+        },
+        {
+          "text": "क्रोम बीटा",
+          "language": "mr",
+          "script": "Devanagari",
+          "kind": "alias",
+          "provenance": "engineering_review",
+          "review_status": "reviewed",
+          "hint_eligible": true,
+          "refinement_eligible": false,
+          "requires_confirmation": true
+        }
+      ]
+    },
+    {
+      "entry_id": "youtube",
+      "category": "application",
+      "forms": [
+        {
+          "text": "YouTube",
+          "language": "en",
+          "script": "Latin",
+          "kind": "canonical",
+          "provenance": "engineering_review",
+          "review_status": "reviewed",
+          "hint_eligible": true,
+          "refinement_eligible": false,
+          "requires_confirmation": true
+        },
+        {
+          "text": "यूट्यूब",
+          "language": "hi",
+          "script": "Devanagari",
+          "kind": "alias",
+          "provenance": "engineering_review",
+          "review_status": "reviewed",
+          "hint_eligible": true,
+          "refinement_eligible": false,
+          "requires_confirmation": true
+        },
+        {
+          "text": "यूट्यूब",
+          "language": "mr",
+          "script": "Devanagari",
+          "kind": "alias",
+          "provenance": "engineering_review",
+          "review_status": "reviewed",
+          "hint_eligible": true,
+          "refinement_eligible": false,
+          "requires_confirmation": true
+        }
+      ]
+    },
+    {
+      "entry_id": "open",
+      "category": "action",
+      "forms": [
+        {
+          "text": "open",
+          "language": "en",
+          "script": "Latin",
+          "kind": "canonical",
+          "provenance": "engineering_review",
+          "review_status": "reviewed",
+          "hint_eligible": true,
+          "refinement_eligible": false,
+          "requires_confirmation": true
+        },
+        {
+          "text": "खोलो",
+          "language": "hi",
+          "script": "Devanagari",
+          "kind": "alias",
+          "provenance": "engineering_review",
+          "review_status": "reviewed",
+          "hint_eligible": true,
+          "refinement_eligible": false,
+          "requires_confirmation": true
+        },
+        {
+          "text": "उघडा",
+          "language": "mr",
+          "script": "Devanagari",
+          "kind": "alias",
+          "provenance": "engineering_review",
+          "review_status": "reviewed",
+          "hint_eligible": true,
+          "refinement_eligible": false,
+          "requires_confirmation": true
+        },
+        {
+          "text": "kholo",
+          "language": "hi",
+          "script": "Latin",
+          "kind": "transliteration",
+          "provenance": "engineering_review",
+          "review_status": "reviewed",
+          "hint_eligible": true,
+          "refinement_eligible": false,
+          "requires_confirmation": true
+        },
+        {
+          "text": "ughada",
+          "language": "mr",
+          "script": "Latin",
+          "kind": "transliteration",
+          "provenance": "engineering_review",
+          "review_status": "reviewed",
+          "hint_eligible": true,
+          "refinement_eligible": false,
+          "requires_confirmation": true
+        }
+      ]
+    },
+    {
+      "entry_id": "play",
+      "category": "action",
+      "forms": [
+        {
+          "text": "play",
+          "language": "en",
+          "script": "Latin",
+          "kind": "canonical",
+          "provenance": "engineering_review",
+          "review_status": "reviewed",
+          "hint_eligible": true,
+          "refinement_eligible": false,
+          "requires_confirmation": true
+        },
+        {
+          "text": "चलाओ",
+          "language": "hi",
+          "script": "Devanagari",
+          "kind": "alias",
+          "provenance": "engineering_review",
+          "review_status": "reviewed",
+          "hint_eligible": true,
+          "refinement_eligible": false,
+          "requires_confirmation": true
+        },
+        {
+          "text": "लावा",
+          "language": "mr",
+          "script": "Devanagari",
+          "kind": "alias",
+          "provenance": "engineering_review",
+          "review_status": "reviewed",
+          "hint_eligible": true,
+          "refinement_eligible": false,
+          "requires_confirmation": true
+        }
+      ]
+    },
+    {
+      "entry_id": "stop",
+      "category": "action",
+      "forms": [
+        {
+          "text": "stop",
+          "language": "en",
+          "script": "Latin",
+          "kind": "canonical",
+          "provenance": "engineering_review",
+          "review_status": "reviewed",
+          "hint_eligible": true,
+          "refinement_eligible": false,
+          "requires_confirmation": true
+        },
+        {
+          "text": "रोको",
+          "language": "hi",
+          "script": "Devanagari",
+          "kind": "alias",
+          "provenance": "engineering_review",
+          "review_status": "reviewed",
+          "hint_eligible": true,
+          "refinement_eligible": false,
+          "requires_confirmation": true
+        },
+        {
+          "text": "थांबवा",
+          "language": "mr",
+          "script": "Devanagari",
+          "kind": "alias",
+          "provenance": "engineering_review",
+          "review_status": "reviewed",
+          "hint_eligible": true,
+          "refinement_eligible": false,
+          "requires_confirmation": true
+        }
+      ]
+    },
+    {
+      "entry_id": "example_town",
+      "category": "location",
+      "forms": [
+        {
+          "text": "Fabletown",
+          "language": "en",
+          "script": "Latin",
+          "kind": "canonical",
+          "provenance": "public_example",
+          "review_status": "reviewed",
+          "hint_eligible": true,
+          "refinement_eligible": false,
+          "requires_confirmation": true
+        },
+        {
+          "text": "कल्पनानगर",
+          "language": "hi",
+          "script": "Devanagari",
+          "kind": "alias",
+          "provenance": "public_example",
+          "review_status": "reviewed",
+          "hint_eligible": true,
+          "refinement_eligible": false,
+          "requires_confirmation": true
+        },
+        {
+          "text": "कल्पनानगर",
+          "language": "mr",
+          "script": "Devanagari",
+          "kind": "alias",
+          "provenance": "public_example",
+          "review_status": "reviewed",
+          "hint_eligible": true,
+          "refinement_eligible": false,
+          "requires_confirmation": true
+        }
+      ]
+    },
+    {
+      "entry_id": "example_media",
+      "category": "media",
+      "forms": [
+        {
+          "text": "Imaginary Moon Song",
+          "language": "en",
+          "script": "Latin",
+          "kind": "canonical",
+          "provenance": "public_example",
+          "review_status": "reviewed",
+          "hint_eligible": true,
+          "refinement_eligible": false,
+          "requires_confirmation": true
+        },
+        {
+          "text": "काल्पनिक चाँद गीत",
+          "language": "hi",
+          "script": "Devanagari",
+          "kind": "alias",
+          "provenance": "public_example",
+          "review_status": "reviewed",
+          "hint_eligible": true,
+          "refinement_eligible": false,
+          "requires_confirmation": true
+        },
+        {
+          "text": "काल्पनिक चंद्रगीत",
+          "language": "mr",
+          "script": "Devanagari",
+          "kind": "alias",
+          "provenance": "public_example",
+          "review_status": "reviewed",
+          "hint_eligible": true,
+          "refinement_eligible": false,
+          "requires_confirmation": true
+        }
+      ]
+    }
+  ]
+}

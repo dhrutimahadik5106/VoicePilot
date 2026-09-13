@@ -5,6 +5,7 @@ from pathlib import Path
 from threading import Event, Lock, RLock
 from time import perf_counter
 
+from app.stt.context import build_hints, load_vocabulary
 from app.stt.audio_preprocessing import prepare_audio
 from app.core.config import Settings
 from app.stt.output_safety import OutputBudget, apply_output_safety, reject, _number
@@ -50,8 +51,11 @@ def decode_resampled(wav_buffer):
 
 class FasterWhisperEngine:
     def __init__(self, settings: Settings, *, model_factory=load_model,
-                 decoder=decode_resampled, clock=perf_counter):
+                 decoder=decode_resampled, clock=perf_counter, context=None, overlay=None):
         self.settings = settings
+        self._context = context
+        self._overlay = overlay
+        self.context_status = "disabled"
         self._factory = model_factory
         self._decoder = decoder
         self._clock = clock
@@ -116,6 +120,13 @@ class FasterWhisperEngine:
                 stage = "transcribe"
                 if request.language is not None and request.language not in self._model.supported_languages:
                     raise TranscriptionError(Code.UNSUPPORTED_LANGUAGE)
+                prompt, hotwords = self.settings.stt_initial_prompt, self.settings.stt_hotwords
+                if self.settings.stt_contextual_enabled:
+                    vocabulary = self._context if self._context is not None else load_vocabulary()
+                    hints = build_hints(vocabulary, request.language,
+                                        tokenizer=getattr(self._model, "hf_tokenizer", None), overlay=self._overlay)
+                    prompt, hotwords = hints.initial_prompt, hints.hotwords
+                    self.context_status = hints.status
                 inference_started = self._clock()
                 stream, info = self._model.transcribe(
                     samples, language=request.language, vad_filter=self.settings.stt_vad_filter,
@@ -124,8 +135,8 @@ class FasterWhisperEngine:
                     temperature=self.settings.stt_temperature,
                     vad_parameters={"min_silence_duration_ms": self.settings.stt_vad_min_silence_duration_ms,
                                     "speech_pad_ms": 400},
-                    initial_prompt=self.settings.stt_initial_prompt or None,
-                    hotwords=self.settings.stt_hotwords or None,
+                    initial_prompt=prompt or None,
+                    hotwords=hotwords or None,
                 )
                 segments = []
                 budget = OutputBudget(self.settings)

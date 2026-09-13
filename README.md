@@ -84,7 +84,7 @@ Defaults:
   (0.25-30); AUDIO_SILENCE_THRESHOLD=0.01 (normalized RMS, greater than 0 to 0.25).
 
 Faster-Whisper receives STT_INITIAL_PROMPT and STT_HOTWORDS with default vocabulary
-VoicePilot, Spotify, WhatsApp, Chrome, YouTube and Dhruti. These are decoding hints,
+VoicePilot, Spotify, WhatsApp, Chrome, YouTube and. These are decoding hints,
 not replacement rules or instructions to execute. Custom prompt/hotword text is
 bounded and rejects control characters; neither is logged. Empty strings disable
 the respective hint. The installed Faster-Whisper supports the hotwords option.
@@ -366,3 +366,46 @@ transcript correction is added. Existing explicit WAV saving remains available.
 Synthetic tests with fake capture, deterministic resampling and fake STT/VAD prove
 routing parity, not real Whisper/VAD accuracy or real resampling quality. No accuracy
 improvement is claimed. Accuracy requires a separately consented evaluation dataset.
+
+## Phase 3E: contextual STT and private evaluation foundation
+
+Contextual hints are opt-in; normal transcription stays unchanged except removal of
+personal vocabulary from public defaults. Add --contextual to an existing STT file,
+microphone/session or parity command. Shadow refinement never replaces raw output
+and never feeds command resolution. No real accuracy improvement is claimed.
+
+The following commands validate or inspect public fictional material only. They do
+not access audio hardware, existing recordings, models or the network:
+
+```powershell
+.\venv\Scripts\python.exe -m app.evaluation.cli validate-schema
+.\venv\Scripts\python.exe -m app.evaluation.cli demo
+.\venv\Scripts\python.exe -m app.evaluation.cli inspect-context --language hi
+.\venv\Scripts\python.exe -m app.evaluation.cli inspect-refinement --language hi --text "कृ पया"
+```
+
+The demo uses fake recognition and generated in-memory PCM. Its scores are pipeline
+checks, not accuracy evidence. Context inspection lists public forms; actual token
+budgeting occurs only with the loaded cached tokenizer. Missing tokenizer information
+fails safely to no hints. Refinement inspection explicitly displays supplied text and
+its separately labelled proposal; ordinary reports hide text.
+
+Preferred private storage is %LOCALAPPDATA%\VoicePilot\private-evaluation\, outside
+this repository/OneDrive. No directory is created automatically. data/stt/private/
+is an explicitly ignored alternative, but ignore rules do not encrypt data or prevent
+cloud synchronization. Do not store identity maps, consent receipts or personal
+transcripts in tracked files. Older commits may retain previously removed hints;
+no Git history was rewritten.
+
+Real manifest validation requires --private-root and --manifest. It checks metadata
+and paths without reading audio. The run command additionally requires
+--consent-evaluation before reading any selected audio. Optional --private-overlay
+explicitly loads a vocabulary within that same private root; no overlay autoloads.
+Optional --show-utterances authorizes local private display; aggregate-only is default.
+There is no export writer. Use --split to select a previously validated split and
+--language auto for a separate automatic-language condition. Real evaluation must
+wait for separately consented data; existing personal recordings are not imported.
+
+See [decision 0006](docs/decisions/0006-contextual-stt-private-evaluation.md) for the
+manifest contract, scoring normalization, exact denominators, A/B/C/D comparisons,
+privacy boundaries and limitations. Medium remains an unimplemented placeholder.

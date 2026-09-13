@@ -119,7 +119,7 @@ def test_refinement_settings_validation(field, value):
 
 def test_domain_defaults_and_environment(monkeypatch):
     settings = Settings()
-    for term in ("VoicePilot", "Spotify", "WhatsApp", "Chrome", "YouTube", "Dhruti"):
+    for term in ("VoicePilot", "Spotify", "WhatsApp", "Chrome", "YouTube"):
         assert term in settings.stt_initial_prompt and term in settings.stt_hotwords
     assert settings.whisper_model == "small"
     assert settings.audio_max_duration_seconds == 120

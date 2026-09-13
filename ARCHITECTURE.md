@@ -63,7 +63,7 @@ for a new start or while transcribing. No audio/history persistence is added.
 
 The default model is small/cpu/int8. Configured beam size, temperature, VAD minimum
 silence, word timestamps, initial prompt and hotwords pass to Faster-Whisper.
-Vocabulary hints include VoicePilot, Spotify, WhatsApp, Chrome, YouTube and Dhruti;
+Vocabulary hints include VoicePilot, Spotify, WhatsApp, Chrome, YouTube and;
 there is no lexical replacement layer. Raw transcript is exact segment-string
 concatenation; normalized transcript only formats segment-boundary whitespace.
 Both are serialized in the structured result; segments preserve raw text.
@@ -148,3 +148,23 @@ and clears numerical snapshots. Existing recordings are never inspected. Earlier
 separate captures do not establish path inequality; synthetic fakes establish
 routing parity only, and numerical equality cannot rule out backend nondeterminism.
 No accuracy improvement is claimed or later project phase introduced.
+
+## Phase 3E contextual evaluation boundary
+
+`stt.context` validates a versioned public vocabulary and explicitly supplied private
+overlay. The existing engine invokes its deterministic language-aware builder only
+when contextual mode is enabled, using the already-loaded tokenizer. All STT entry
+paths share this boundary. No missing tokenizer triggers a fetch.
+
+`stt.refinement` returns a separate shadow object; raw/normalized STT contracts and
+command resolver inputs are unchanged. Only reviewed whole-utterance courtesy
+boundary proposals are supported, always with confirmation. No execution is enabled.
+
+`evaluation.dataset` enforces selected private-root and consent/review/split metadata
+boundaries. `evaluation.metrics` computes rates from temporary scoring copies.
+`evaluation.stt` loads each explicitly consented PCM once for paired frozen A/B
+settings, checks actual prepared-input equality, and reuses successful outputs for
+C shadow and D raw resolver comparisons. E medium is a placeholder. Aggregate
+reports contain numerical metrics and configuration only; private per-utterance
+output requires explicit local authorization. No export/history or private directory
+creation occurs. Public fixtures are fictional and fakes establish routing only.

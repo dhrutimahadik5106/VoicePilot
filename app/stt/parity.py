@@ -140,6 +140,7 @@ def main(argv=None, *, settings=None, recorder=None, engine_factory=ComparisonEn
     parser = argparse.ArgumentParser(description="Capture once; compare direct and memory-WAV STT. Never saves audio.")
     parser.add_argument("--seconds", type=float, default=10.0)
     parser.add_argument("--language")
+    parser.add_argument("--contextual", action="store_true")
     parser.add_argument("--reverse-order", action="store_true")
     parser.add_argument("--show-successful-transcripts", action="store_true")
     args = parser.parse_args(argv)
@@ -147,6 +148,8 @@ def main(argv=None, *, settings=None, recorder=None, engine_factory=ComparisonEn
     cancel = cancel if cancel is not None else Event()
     try:
         snapshot = settings_snapshot(settings if settings is not None else get_settings(), args.language)
+        if args.contextual:
+            snapshot = ParitySettings.model_validate(snapshot.model_dump() | {"stt_contextual_enabled": True})
         limit = min(snapshot.audio_max_duration_seconds, snapshot.stt_max_duration_seconds)
         if not math.isfinite(args.seconds) or not .1 <= args.seconds <= limit:
             write("Parity error: invalid_duration")

@@ -51,11 +51,14 @@ def main(argv=None, *, settings=None, engine=None, recorder=None,
     for subparser in (file_parser, mic_parser):
         subparser.add_argument("--safety-diagnostics", action="store_true",
                                help="Display numerical rejection evidence only; does not change safety")
+        subparser.add_argument("--contextual", action="store_true", help="Opt in to versioned multilingual hints")
         subparser.add_argument("--language", help="Language code such as en, hi, mr, or auto")
     args = parser.parse_args(argv)
     owned_engine = None
     try:
         settings = settings if settings is not None else get_settings()
+        if args.contextual:
+            settings = Settings.model_validate(settings.model_dump() | {"stt_contextual_enabled": True})
         if args.language is not None:
             normalize_stt_language(args.language)
         if args.command == "microphone":

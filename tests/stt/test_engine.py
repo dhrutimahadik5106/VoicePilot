@@ -164,7 +164,7 @@ def test_offline_loader_blocks_missing_tokenizer(monkeypatch, tmp_path):
 
 
 def test_raw_normalized_preserve_domain_and_arbitrary_words():
-    original = " Play Voice Pilot on Spotify, not Hey VoicePilot. WhatsApp Chrome YouTube Dhruti "
+    original = " Play Voice Pilot on Spotify, not Hey VoicePilot. WhatsApp Chrome YouTube "
     model = FakeModel([segment(original)])
     result = FasterWhisperEngine(Settings(), model_factory=lambda *a, **k: model).transcribe(
         TranscriptionRequest(audio=audio()))
@@ -174,7 +174,7 @@ def test_raw_normalized_preserve_domain_and_arbitrary_words():
     assert result.model_dump()["raw_transcript"] == original
     assert "Play Voice" not in repr(result)
     options = model.calls[0][1]
-    for term in ("VoicePilot", "Spotify", "WhatsApp", "Chrome", "YouTube", "Dhruti"):
+    for term in ("VoicePilot", "Spotify", "WhatsApp", "Chrome", "YouTube"):
         assert term in options["hotwords"] and term in options["initial_prompt"]
 
 

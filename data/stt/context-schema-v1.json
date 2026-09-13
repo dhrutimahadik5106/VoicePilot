@@ -1,0 +1,153 @@
+{
+  "$defs": {
+    "Entry": {
+      "additionalProperties": false,
+      "properties": {
+        "entry_id": {
+          "pattern": "^[a-z][a-z0-9_]{0,39}$",
+          "title": "Entry Id",
+          "type": "string"
+        },
+        "category": {
+          "enum": [
+            "assistant",
+            "application",
+            "action",
+            "location",
+            "media"
+          ],
+          "title": "Category",
+          "type": "string"
+        },
+        "forms": {
+          "items": {
+            "$ref": "#/$defs/Form"
+          },
+          "maxItems": 16,
+          "minItems": 1,
+          "title": "Forms",
+          "type": "array"
+        }
+      },
+      "required": [
+        "entry_id",
+        "category",
+        "forms"
+      ],
+      "title": "Entry",
+      "type": "object"
+    },
+    "Form": {
+      "additionalProperties": false,
+      "properties": {
+        "text": {
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        },
+        "language": {
+          "enum": [
+            "en",
+            "hi",
+            "mr",
+            "mixed"
+          ],
+          "title": "Language",
+          "type": "string"
+        },
+        "script": {
+          "enum": [
+            "Latin",
+            "Devanagari"
+          ],
+          "title": "Script",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "canonical",
+            "alias",
+            "transliteration",
+            "abbreviation",
+            "alternate_spelling",
+            "observed_asr_error"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "provenance": {
+          "enum": [
+            "public_example",
+            "engineering_review",
+            "user_confirmed"
+          ],
+          "title": "Provenance",
+          "type": "string"
+        },
+        "review_status": {
+          "enum": [
+            "reviewed",
+            "pending"
+          ],
+          "title": "Review Status",
+          "type": "string"
+        },
+        "hint_eligible": {
+          "default": true,
+          "title": "Hint Eligible",
+          "type": "boolean"
+        },
+        "refinement_eligible": {
+          "default": false,
+          "title": "Refinement Eligible",
+          "type": "boolean"
+        },
+        "requires_confirmation": {
+          "default": true,
+          "title": "Requires Confirmation",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "text",
+        "language",
+        "script",
+        "kind",
+        "provenance",
+        "review_status"
+      ],
+      "title": "Form",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "version": {
+      "const": "context-v1",
+      "title": "Version",
+      "type": "string"
+    },
+    "entries": {
+      "items": {
+        "$ref": "#/$defs/Entry"
+      },
+      "maxItems": 128,
+      "minItems": 1,
+      "title": "Entries",
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema_version",
+    "version",
+    "entries"
+  ],
+  "title": "Vocabulary",
+  "type": "object"
+}

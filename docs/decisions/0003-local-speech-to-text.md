@@ -81,7 +81,7 @@ audio/transcript persistence is added; cancellation discards current data.
 Use small on CPU/int8; no medium/large migration or GPU assumption. Pass beam
 size, temperature (default zero), VAD minimum silence (1000ms, with 400ms speech
 padding), word timestamps, initial prompt and hotwords to the installed backend.
-Default vocabulary is VoicePilot, Spotify, WhatsApp, Chrome, YouTube and Dhruti.
+Default vocabulary is VoicePilot, Spotify, WhatsApp, Chrome, YouTube and.
 Hints can be disabled with empty strings. They can bias multilingual decoding;
 accuracy is not guaranteed.
 

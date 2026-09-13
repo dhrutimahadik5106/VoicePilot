@@ -56,3 +56,17 @@ experiments/raw/
 
 # Future restricted collection metadata; no directory created by Phase 3B
 data/commands/private/
+
+# Phase 3E private evaluation: audio, manifests, overlays and derived reports
+/data/stt/private/
+/private-evaluation/
+/evaluation-exports/
+*.private.json
+*.private.jsonl
+*.private.csv
+*.private.txt
+*.private.wav
+*.private.flac
+*.private.mp3
+*.utterances.jsonl
+*.evaluation-export.json
