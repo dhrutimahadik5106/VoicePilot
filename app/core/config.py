@@ -6,6 +6,7 @@ from typing import Literal
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from app.speaker.models import SpeakerConfiguration
 
 
 def validate_recordings_dir(value) -> Path:
@@ -42,7 +43,7 @@ def normalize_stt_language(value) -> str | None:
 class Settings(BaseSettings):
     """Load VOICEPILOT_ environment variables; .env loading is deliberately opt-in."""
 
-    model_config = SettingsConfigDict(env_prefix="VOICEPILOT_", extra="forbid")
+    model_config = SettingsConfigDict(env_prefix="VOICEPILOT_", extra="forbid", env_nested_delimiter="__")
 
     app_name: str = "VoicePilot"
     environment: Literal["development", "test", "production"] = "development"
@@ -54,6 +55,7 @@ class Settings(BaseSettings):
     ollama_base_url: str = "http://localhost:11434"
     wake_word_enabled: bool = False
     speaker_verification_enabled: bool = False
+    speaker: SpeakerConfiguration = Field(default_factory=SpeakerConfiguration)
     whisper_model: Literal["tiny", "tiny.en", "base", "base.en", "small", "small.en", "medium", "medium.en", "large", "large-v1", "large-v2", "large-v3", "large-v3-turbo", "turbo", "distil-small.en", "distil-medium.en", "distil-large-v2", "distil-large-v3", "distil-large-v3.5"] = "small"
     whisper_device: Literal["cpu", "cuda"] = "cpu"
     whisper_compute_type: Literal["int8", "float32", "float16", "int8_float16", "int8_float32"] = "int8"

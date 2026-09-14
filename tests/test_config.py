@@ -27,7 +27,7 @@ def isolated_environment(monkeypatch, tmp_path):
 
 def test_safe_defaults(tmp_path):
     settings = Settings()
-    assert settings.model_dump() == {
+    assert settings.model_dump(exclude={"speaker"}) == {
         "app_name": "VoicePilot", "environment": "development", "debug": False,
         "log_level": "INFO", "data_dir": Path("data"), "log_dir": Path("logs"),
         "llm_provider": "disabled", "ollama_base_url": "http://localhost:11434",

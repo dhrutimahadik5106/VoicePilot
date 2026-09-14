@@ -70,3 +70,12 @@ data/commands/private/
 *.private.mp3
 *.utterances.jsonl
 *.evaluation-export.json
+
+# Phase 4A: biometric artifacts (ignore is not security; storage is outside repo)
+*.speaker-profile
+*.speaker-template
+*.speaker-trials.jsonl
+*.speaker-report.json
+.speaker-*.tmp
+/speaker-profiles/
+/data/speaker/private/

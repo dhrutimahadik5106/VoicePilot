@@ -80,3 +80,13 @@
   Preserve reason codes and bounded numerical evidence before sanitization.
   Never display, log or serialize private decoder text. Cancellation clears both
   numerical and private diagnostics. Wait for manual evidence before policy changes.
+
+## Phase 4A authorization
+
+Phase 4A supersedes earlier blanket prohibitions on speaker foundation work only.
+Fake-backed speaker contracts, enrollment/verification, protected-storage boundaries,
+a fail-closed STT gateway and synthetic evaluation are approved. No runtime/model
+installation, microphone/recordings access, real profiles, execution or Phase 4B.
+Keep real inference/protection unavailable; never fall back to plaintext. All
+speaker tests use generated PCM, fake engines/protectors and temporary directories.
+No synthetic or pending policy authorizes the gateway. Preserve Phases 1-3E.

@@ -168,3 +168,34 @@ C shadow and D raw resolver comparisons. E medium is a placeholder. Aggregate
 reports contain numerical metrics and configuration only; private per-utterance
 output requires explicit local authorization. No export/history or private directory
 creation occurs. Public fixtures are fictional and fakes establish routing only.
+
+## Phase 4A speaker boundary
+
+`app/speaker/models.py` provides private-template/public-result contracts and
+side-effect-free settings. `quality.py`, `embedding.py` and `thresholds.py` contain
+numerical checks, immutable normalized vectors and bounded cosine decisions.
+`enrollment.py` requires separate enrollment/persistence consent and consistent
+3-5 sample aggregation. `verification.py` validates nominated profiles and model/
+preprocessing/policy compatibility, then computes one safe verification result.
+
+`profiles.py` is a bounded, atomic, externally rooted protected-file repository;
+`protection.py` deliberately supplies only an unavailable production protector.
+It creates no root, provides no DPAPI adapter and has no plaintext fallback or
+profile cache. Tests use opaque tokens held by a fake protector, not encryption.
+The future provisioner must establish restrictive ACLs before private writes.
+
+`pipeline.py` binds a fresh verification request to an opaque audio ID and reuses
+the exact original audio buffer for STT. Only verified, validated-policy results
+reach the safety-applying TranscriptionService and non-executing resolver. All
+other statuses, mismatches, cancellation and backend errors fail closed. Ordinary
+pipeline dumps exclude downstream text. There is no boolean authorization input,
+text-entry path, saved-result authorization or execution dependency.
+
+`antispoof.py` returns unavailable, never liveness. `evaluate.py` handles synthetic
+trial counts, denominator-explicit rates, EER interpolation and split checks.
+`cli.py` exposes safe metadata/schema/synthetic commands; real operations remain
+unavailable. Real model/protector/calibration provisioning belongs to Phase 4B.
+
+The existing disabled speaker flag and nested `VOICEPILOT_SPEAKER__...` settings do
+not activate a backend. Existing diagnostic CLIs preserve Phase 1-3E behavior.
+See decision 0007 for exact defaults, privacy, lifecycle and research limitations.

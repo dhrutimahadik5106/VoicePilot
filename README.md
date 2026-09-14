@@ -409,3 +409,40 @@ wait for separately consented data; existing personal recordings are not importe
 See [decision 0006](docs/decisions/0006-contextual-stt-private-evaluation.md) for the
 manifest contract, scoring normalization, exact denominators, A/B/C/D comparisons,
 privacy boundaries and limitations. Medium remains an unimplemented placeholder.
+
+## Phase 4A speaker-verification foundation
+
+Fake-backed enrollment, verification, protected-storage boundaries and synthetic
+metrics are implemented. Real inference and secure profile persistence remain
+unavailable. No new dependencies, runtime or model have been installed.
+
+Safe commands (no microphone, recordings, model or profile access):
+
+```powershell
+.\venv\Scripts\python.exe -m app.speaker.cli inspect-status
+.\venv\Scripts\python.exe -m app.speaker.cli inspect-policy
+.\venv\Scripts\python.exe -m app.speaker.cli validate-schema
+.\venv\Scripts\python.exe -m app.speaker.cli evaluate --synthetic
+```
+
+`profiles list`, `enroll` and `verify` return unavailable (exit code 2).
+Synthetic scores are pipeline tests, not measured biometric performance. Existing
+STT/resolver CLIs remain diagnostics, never authenticated execution paths.
+
+Enrollment requires separate capture/enrollment and persistence consent. No raw
+audio is saved. Profiles are biometric data; future storage belongs outside Git
+and OneDrive, behind an audited protector and private ACLs. Phase 4A's default
+protector fails closed. It implements no real DPAPI encryption.
+
+The gateway verifies each buffer afresh and passes the same audio to the existing
+STT safety service only under a validated policy. Pending/synthetic policies and
+all nonverified outcomes block the gateway. No execution is implemented.
+
+Voice matching does not establish liveness, defeat replay/deepfakes, or replace
+Windows authentication. Hindi/Marathi/Indian-accent accuracy is unmeasured.
+Python cannot guarantee memory erasure; deletion cannot erase backups or copies.
+High-risk future actions require another factor.
+
+See [decision 0007](docs/decisions/0007-speaker-verification-foundation.md) for
+configuration defaults, enrollment/deletion behavior, threshold equations,
+synthetic results, privacy limits and the separately approved Phase 4B boundary.
