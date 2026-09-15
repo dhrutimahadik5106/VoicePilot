@@ -252,3 +252,20 @@ Private text is omitted by default. Traces never contain biometric evidence or
 private STT segments. Artifact persistence is bounded, UUID-selected, no-overwrite,
 atomic and explicit; it is not a history database. No automatic startup/capture,
 model download, retention or directory creation is introduced. See decision 0009.
+
+
+## Phase 5B fake execution-control boundary
+
+`app/execution` adds independent typed models, immutable adapter metadata, an
+instance-local synthetic evidence authority, controller/state machine, independent
+FakeWorld observer, safe audit events and synthetic evaluation/inspection CLI.
+`Controller.run` always blocks production execution; only `run_fake` exercises
+synthetic fixtures. No Phase 5A pipeline invokes it and no speaker/model is loaded.
+
+Admission consumes plan/step/argument/policy-bound evidence before adapter entry.
+Independent observation and verification are mandatory for fake success. Shared
+authority and controller ledgers protect logical-step idempotency. Emergency stop
+latches cancellation; bounded retry applies only to idempotent fake effects.
+Rollback is claimed only after independent restoration observation. Audit events
+contain no transcript, entity value or biometric evidence and are never persisted.
+See decision 0010 for the state graph, limitations and future production boundary.

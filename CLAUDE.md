@@ -128,3 +128,20 @@ Use UUID filenames, size/duration bounds, atomic writes and no overwrite. Never 
 or upload artifacts. No real microphone/model/profile/recording access during automated
 Phase 5A work. Use synthetic/fake inputs and temporary directories; preserve all prior
 phases and dependencies. See decision 0009 for exact CLI, privacy and testing limits.
+
+
+## Phase 5B authorization
+
+Phase 5B permits controlled-execution foundation using in-memory fake adapters only.
+Production execution stays globally disabled. No dynamic imports from plans, arbitrary
+paths/code/URLs, subprocess, browser/application/input control or network adapters.
+Only exact synthetic fixture/evidence types enter the fake controller; diagnostic plans,
+simulator results and plain booleans never grant authority. No real speaker issuer,
+profile/model/microphone access or calibration changes are approved in this phase.
+
+Preserve exact plan/step/argument/policy/evidence binding, expiry, single-use evidence,
+prohibited-action blocking, independent observation/verification, bounded retries,
+idempotency, cancellation and emergency stop. Never claim rollback without observing
+restored state. Audits are private-field-free, in memory only. Tests actively block real
+integrations and file access. No dependency installation or Phase 6A is approved.
+See decision 0010 for the fake-only boundary and future production prerequisites.

@@ -496,3 +496,22 @@ See [decision 0009](docs/decisions/0009-safe-task-planning-diagnostics.md) for c
 CLI commands, architecture, consent/privacy boundaries, configuration and evaluation.
 No real microphone, speaker profile, model or application was used during Phase 5A
 validation. Synthetic results are not real-world safety guarantees.
+
+
+## Phase 5B: controlled execution foundation
+
+The execution controller now has closed fake adapters, plan-bound expiring single-use
+authorization/confirmation, a validated state machine, independent observation and
+verification, emergency stop, bounded retry/timeouts, idempotency and observed rollback.
+Production execution remains disabled. Existing diagnostic plans cannot authorize it.
+All adapters change synthetic in-memory state only; no application is opened.
+
+```powershell
+.\venv\Scripts\python.exe -m app.execution.cli status
+.\venv\Scripts\python.exe -m app.execution.cli registry
+.\venv\Scripts\python.exe -m app.execution.cli evaluate
+```
+
+No audit database, profile access, microphone use, model loading or dependencies are
+introduced. See [decision 0010](docs/decisions/0010-controlled-execution-foundation.md)
+for the synthetic authorization boundary, privacy, evaluation and Phase 6A prerequisites.
