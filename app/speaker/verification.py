@@ -23,7 +23,7 @@ class VerificationService:
                 return result("unavailable", "unavailable")
             cfg = self.policy.configuration
             profile = self.repository.load(profile_id)
-            profile = SpeakerProfile.model_validate(profile.model_dump() | {"template": profile.template})
+            profile = SpeakerProfile.model_validate(profile.model_dump() | {"template": profile.template, "enrollment_hashes": profile.enrollment_hashes})
             if (profile.profile_id != profile_id or profile.model != model or cfg.model != model
                     or profile.policy_version != cfg.version or profile.calibration != cfg.calibration):
                 return result("invalid_profile", "incompatible_profile")

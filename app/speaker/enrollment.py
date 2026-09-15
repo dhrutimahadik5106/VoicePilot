@@ -13,7 +13,7 @@ class EnrollmentService:
         self.configuration, self.engine, self.quality = configuration, engine, quality
         self.repository, self.policy, self.clock, self.ids = repository, policy, clock, ids
 
-    def enroll(self, samples, consent, *, cancel=None, profile_id=None):
+    def enroll(self, samples, consent, *, cancel=None, profile_id=None, enrollment_session=None):
         vectors, outcomes = [], []
         def failure(reason, status="rejected"):
             return EnrollmentResult(status=status, reason=reason)
@@ -54,10 +54,15 @@ class EnrollmentService:
             created = now
             if profile_id is not None:
                 created = self.repository.load(profile_id).created_at
+            if model.name != "synthetic":
+                enrollment_session = self.ids()  # Fresh for every real enrollment, never inherited.
+            from app.speaker.calibration import waveform_hash
             profile = SpeakerProfile(profile_id=profile_id or self.ids(), model=model,
+                enrollment_session=enrollment_session,
+                enrollment_hashes=tuple(waveform_hash(a) for _, a in samples) if enrollment_session else (),
                 template=aggregate, sample_count=len(vectors), created_at=created, updated_at=now,
-                policy_version=self.policy.configuration.version,
-                calibration=self.policy.configuration.calibration)
+                policy_version="calibration-pending" if enrollment_session else self.policy.configuration.version,
+                calibration="pending" if enrollment_session else self.policy.configuration.calibration)
             check_cancel(cancel)
             self.repository.save(profile, cancel=cancel)
             return EnrollmentResult(status="enrolled", profile_id=profile.profile_id,

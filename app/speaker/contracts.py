@@ -9,7 +9,7 @@ from app.speaker.models import (ModelIdentity, SpeakerProfile, SpeakerQualitySum
 class SpeakerError(Exception):
     def __init__(self, code="unavailable"):
         self.code = code if code in {"unavailable", "invalid_profile", "invalid_audio",
-            "invalid_embedding", "cancelled", "incompatible_profile"} else "unavailable"
+            "invalid_embedding", "cancelled", "incompatible_profile", "runtime_unavailable", "model_missing", "model_invalid", "inference_failed", "protection_unavailable", "protection_failed", "provisioning_failed", "consent_required", "calibration_pending"} else "unavailable"
         super().__init__(self.code)
 
 class SpeakerEmbeddingEngine(Protocol):

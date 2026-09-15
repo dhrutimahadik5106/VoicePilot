@@ -84,10 +84,10 @@ class ProtectedProfileRepository:
         temporary = None
         try:
             check_cancel(cancel)
-            profile = SpeakerProfile.model_validate(profile.model_dump() | {"template": profile.template})
+            profile = SpeakerProfile.model_validate(profile.model_dump() | {"template": profile.template, "enrollment_hashes": profile.enrollment_hashes})
             path = self._path(profile.profile_id)
             # This is the sole privileged template serializer.
-            document = profile.model_dump(mode="json") | {"template": profile.template.tolist()}
+            document = profile.model_dump(mode="json") | {"template": profile.template.tolist(), "enrollment_hashes": profile.enrollment_hashes}
             plaintext = json.dumps(document, allow_nan=False, separators=(",", ":")).encode()
             if len(plaintext) > MAX_BYTES:
                 raise ValueError()

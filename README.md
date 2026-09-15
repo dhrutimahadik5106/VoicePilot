@@ -446,3 +446,20 @@ High-risk future actions require another factor.
 See [decision 0007](docs/decisions/0007-speaker-verification-foundation.md) for
 configuration defaults, enrollment/deletion behavior, threshold equations,
 synthetic results, privacy limits and the separately approved Phase 4B boundary.
+
+
+## Phase 4B local speaker verification
+
+Phase 4B supersedes the Phase 4A unavailable runtime/protector descriptions above.
+The pinned WeSpeaker model runs locally through sherpa-onnx 1.13.8. Explicit CLI
+workflows provide enrollment, verification and private calibration; current-user
+Windows DPAPI protects profiles and records outside Git/OneDrive, without plaintext
+fallback. Calibration evidence and reviewed policies bind to the exact enrollment.
+Successful re-enrollment resets authorization; failed replacements preserve it.
+Defaults remain disabled/pending. No microphone testing or real enrollment was
+performed during implementation, and no execution or anti-spoofing is implemented.
+
+See [decision 0008](docs/decisions/0008-real-local-speaker-verification.md) for the
+model source/licence/hash, configuration, security limits, evaluation and exact manual
+commands. `inspect-status`, `inspect-model`, `smoke-backend` (generated sine wave),
+`smoke-dpapi` (fixed marker), and `evaluate --synthetic` do not capture a microphone.

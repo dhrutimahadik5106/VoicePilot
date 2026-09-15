@@ -90,3 +90,17 @@ installation, microphone/recordings access, real profiles, execution or Phase 4B
 Keep real inference/protection unavailable; never fall back to plaintext. All
 speaker tests use generated PCM, fake engines/protectors and temporary directories.
 No synthetic or pending policy authorizes the gateway. Preserve Phases 1-3E.
+
+
+## Phase 4B authorization
+
+Phase 4B supersedes prior runtime/protector prohibitions only for approved WeSpeaker
+ResNet34 through sherpa-onnx 1.13.8 and Windows current-user DPAPI. Explicit pinned
+model provisioning and non-biometric platform smoke checks are approved. No real
+microphone/enrollment or existing recording inspection is permitted during automated
+work. Preserve the venv and unrelated dependencies. Protect complete private records
+outside Git/OneDrive; never fall back to plaintext. Calibration approval must bind
+all selected evidence to the current profile/enrollment/template/model/schema. Missing
+or stale provenance fails closed; re-enrollment revokes earlier authorization. Tests
+use synthetic inputs/fakes. No later phase or execution is authorized. See decision
+0008 for manual boundaries, privacy limits and validation requirements.

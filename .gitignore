@@ -79,3 +79,9 @@ data/commands/private/
 .speaker-*.tmp
 /speaker-profiles/
 /data/speaker/private/
+
+# Phase 4B protected calibration and public model receipts
+*.speaker-private
+*.speaker-model.json
+.private-*.tmp
+.metadata-*.tmp

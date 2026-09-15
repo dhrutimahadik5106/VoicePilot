@@ -11,7 +11,7 @@ Reason = Literal["ok", "consent_required", "persistence_consent_required", "canc
     "invalid_audio", "invalid_embedding", "inconsistent_samples", "sample_count",
     "duplicate_sample", "unavailable", "invalid_profile", "incompatible_profile",
     "calibration_pending", "below_threshold", "review_required", "backend_failed",
-    "binding_mismatch", "stt_rejected", "downstream_failed"]
+    "binding_mismatch", "stt_rejected", "downstream_failed", "runtime_unavailable", "model_missing", "model_invalid", "inference_failed", "protection_unavailable", "protection_failed", "provisioning_failed"]
 
 class SafeModel(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid", hide_input_in_errors=True,
@@ -21,7 +21,16 @@ class SpeakerConfiguration(SafeModel):
     profile_root: Path | None = Field(default=None, repr=False, exclude=True)
     model_path: Path | None = Field(default=None, repr=False, exclude=True)
     policy_path: Path | None = Field(default=None, repr=False, exclude=True)
-    model_id: Literal["wespeaker-resnet34-pending"] = "wespeaker-resnet34-pending"
+    model_id: Literal["wespeaker-resnet34"] = "wespeaker-resnet34"
+    backend: Literal["sherpa-onnx"] = "sherpa-onnx"
+    checksum: str = Field(default="5ef208a9da1453335308a6b6f4e6dfbd7e183a38b604de0a57664f45d257fe94", pattern=r"^[0-9a-f]{64}$")
+    checksum_type: Literal["publisher-sha256"] = "publisher-sha256"
+    default_profile_id: UUID | None = Field(default=None, repr=False, exclude=True)
+    calibration_root: Path | None = Field(default=None, repr=False, exclude=True)
+    calibration_state: Literal["pending", "validated"] = "pending"
+    diagnostics: bool = False
+    max_retries: int = Field(default=2, ge=0, le=3, strict=True)
+    capture_duration: float = Field(default=8.0, gt=0, le=120, allow_inf_nan=False)
     schema_version: Literal[1] = 1
     sample_rate: Literal[16000] = 16000
     embedding_dimension: int = Field(default=256, ge=2, le=4096, strict=True)
@@ -40,7 +49,7 @@ class SpeakerConfiguration(SafeModel):
     local_files_only: Literal[True] = True
     antispoof_policy: Literal["not_assessed"] = "not_assessed"
 
-    @field_validator("sample_rate", "schema_version", "embedding_dimension", "min_samples", "max_samples", "enrollment_samples", mode="before")
+    @field_validator("sample_rate", "schema_version", "embedding_dimension", "min_samples", "max_samples", "enrollment_samples", "max_retries", mode="before")
     @classmethod
     def environment_integer(cls, value):
         if isinstance(value, str) and value.isascii() and value.isdigit():
@@ -56,7 +65,7 @@ class SpeakerConfiguration(SafeModel):
             return True
         raise ValueError("required_guard_disabled")
 
-    @field_validator("min_duration", "max_duration", "min_rms", "max_clipping", "consistency_threshold", "acceptance_threshold", "rejection_threshold", mode="before")
+    @field_validator("min_duration", "max_duration", "min_rms", "max_clipping", "consistency_threshold", "acceptance_threshold", "rejection_threshold", "capture_duration", mode="before")
     @classmethod
     def numeric(cls, value):
         if isinstance(value, bool):
@@ -135,6 +144,8 @@ class SpeakerProfile(SafeModel):
     profile_id: UUID
     model: ModelIdentity
     template: object = Field(repr=False, exclude=True)
+    enrollment_session: UUID | None = None
+    enrollment_hashes: tuple[str, ...] = Field(default=(), repr=False, exclude=True)
     sample_count: int = Field(ge=3, le=5, strict=True)
     created_at: datetime
     updated_at: datetime
@@ -151,7 +162,8 @@ class SpeakerProfile(SafeModel):
         if (self.created_at.utcoffset() is None or self.updated_at.utcoffset() is None
                 or self.updated_at < self.created_at):
             raise ValueError("invalid_timestamps")
-        object.__setattr__(self, "template", vector)
+        # Preserve the validated exact bytes across protected round trips.
+        object.__setattr__(self, "template", np.frombuffer(np.asarray(raw, dtype=np.float64).tobytes(), dtype=np.float64))
         return self
 
 class EnrollmentResult(SafeModel):
