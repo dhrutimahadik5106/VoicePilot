@@ -463,3 +463,36 @@ See [decision 0008](docs/decisions/0008-real-local-speaker-verification.md) for 
 model source/licence/hash, configuration, security limits, evaluation and exact manual
 commands. `inspect-status`, `inspect-model`, `smoke-backend` (generated sine wave),
 `smoke-dpapi` (fixed marker), and `evaluate --synthetic` do not capture a microphone.
+
+
+## Phase 5A: safe planning and diagnostics
+
+VoicePilot now produces deterministic typed task plans, risk decisions and simulated
+results. Every step has execution disabled. No application/browser control or live
+search is implemented. Unknown research/cafe-comparison requests remain unsupported.
+
+```powershell
+.\venv\Scripts\python.exe -m app.pipeline.cli unauthenticated-text "open Spotify" --show-transcript
+.\venv\Scripts\python.exe -m app.planning.cli evaluate
+```
+
+User-only microphone diagnostics: `-m app.pipeline.cli unauthenticated-voice --seconds 8
+--show-transcript` using the same venv interpreter. Every capture requires Enter.
+`--session` permits a bounded series of deliberate captures. Cached STT models only;
+missing models fail without a download. This mode is explicitly unauthenticated and
+cannot authorize execution. `authenticated --profile PROFILE_UUID` instead uses the
+Phase 4B policy/verifier boundary and blocks before STT while calibration is pending.
+
+No audio or trace is saved automatically. `--save-audio` and `--save-trace` ask separate
+per-operation consent; `--show-transcript` controls text visibility and whether an
+approved trace save includes text. Artifacts default outside Git/OneDrive under
+LOCALAPPDATA/VoicePilot/diagnostics. `traces list`, `traces inspect --id TRACE_UUID`
+and `traces delete --id TRACE_UUID` manage explicitly saved diagnostic traces only.
+Add `--show-transcript` to selected inspection to display saved text. Saved WAVs are
+separate, with their exact path printed for manual playback/removal. All traces can
+reveal intentions; approved text/audio is sensitive plaintext, not encrypted profiles.
+
+See [decision 0009](docs/decisions/0009-safe-task-planning-diagnostics.md) for complete
+CLI commands, architecture, consent/privacy boundaries, configuration and evaluation.
+No real microphone, speaker profile, model or application was used during Phase 5A
+validation. Synthetic results are not real-world safety guarantees.

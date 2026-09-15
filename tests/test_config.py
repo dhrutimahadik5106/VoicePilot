@@ -27,7 +27,7 @@ def isolated_environment(monkeypatch, tmp_path):
 
 def test_safe_defaults(tmp_path):
     settings = Settings()
-    assert settings.model_dump(exclude={"speaker"}) == {
+    assert settings.model_dump(exclude={"speaker", "planning"}) == {
         "app_name": "VoicePilot", "environment": "development", "debug": False,
         "log_level": "INFO", "data_dir": Path("data"), "log_dir": Path("logs"),
         "llm_provider": "disabled", "ollama_base_url": "http://localhost:11434",
@@ -55,6 +55,10 @@ def test_safe_defaults(tmp_path):
         "stt_hotwords": "VoicePilot Spotify WhatsApp Chrome YouTube",
         "stt_contextual_enabled": False,
     }
+    assert settings.planning.simulation_only is True
+    assert settings.planning.trace_saving_enabled is False
+    assert settings.planning.audio_saving_enabled is False
+    assert settings.planning.trace_root is None
     assert list(tmp_path.iterdir()) == []
 
 

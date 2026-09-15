@@ -216,3 +216,39 @@ See [decision 0008](docs/decisions/0008-real-local-speaker-verification.md) for 
 model source/licence/hash, configuration, security limits, evaluation and exact manual
 commands. `inspect-status`, `inspect-model`, `smoke-backend` (generated sine wave),
 `smoke-dpapi` (fixed marker), and `evaluate --synthetic` do not capture a microphone.
+
+
+## Phase 5A planning and diagnostic boundary
+
+`app/planning` contains strict plans/configuration, a closed data-only capability
+registry, deterministic risk rules and resolver-checked templates, explicit expiring
+single-use simulation confirmations, simulated observation/verification/recovery,
+and labelled synthetic evaluation. No executor implementation can perform actions.
+Arguments are closed identifiers; generated text cannot select handlers or imports.
+Every capability, plan, step and result denies execution.
+
+`app/pipeline` separates trace models, orchestration, consent-controlled artifact
+storage and the readable/JSON CLI. The two unauthenticated entry points are development
+diagnostics only. Authenticated inspection delegates to the established Phase 4B
+protected-policy and VerificationService boundaries; pending policy blocks STT.
+A successful authorized flow reuses the exact captured buffer and fresh audio ID.
+
+```mermaid
+flowchart TD
+  T[Explicit unauthenticated text] --> R[Existing resolver]
+  V[Explicit unauthenticated voice] --> S[Local STT and safety gate]
+  A[Explicit authenticated capture] --> G[Phase 4B policy and verifier]
+  G -->|pending or denied| B[Access denied; STT not called]
+  G -->|fresh policy-authorized result| S
+  S --> R
+  R --> P[Validated deterministic plan and risk]
+  P --> M[Simulation only; zero real actions]
+  M --> O[Allowlisted diagnostic trace]
+  O -->|explicit flags and per-operation consent| D[Local diagnostic artifact]
+```
+
+Raw/STT-normalized/resolver-normalized/canonical/proposed forms remain distinct.
+Private text is omitted by default. Traces never contain biometric evidence or
+private STT segments. Artifact persistence is bounded, UUID-selected, no-overwrite,
+atomic and explicit; it is not a history database. No automatic startup/capture,
+model download, retention or directory creation is introduced. See decision 0009.

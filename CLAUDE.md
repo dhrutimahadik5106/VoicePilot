@@ -104,3 +104,27 @@ all selected evidence to the current profile/enrollment/template/model/schema. M
 or stale provenance fails closed; re-enrollment revokes earlier authorization. Tests
 use synthetic inputs/fakes. No later phase or execution is authorized. See decision
 0008 for manual boundaries, privacy limits and validation requirements.
+
+
+## Phase 5A authorization
+
+Phase 5A permits deterministic typed task planning, a closed capability/risk registry,
+expiring plan-bound simulation confirmations and non-executing observation/recovery.
+It also permits explicitly named unauthenticated text/voice diagnostics and authenticated
+inspection through the existing Phase 4B verifier and protected-policy boundary.
+Missing/pending calibration blocks before STT; never imitate verification with a
+computed-and-discarded score. No threshold/calibration or biometric profile changes.
+
+No real browser/application/input control, live network search, LLM, generated shell/
+Python execution, user-document access, permanent history or Phase 5B is authorized.
+Every plan/step/result remains simulation-only with execution_permitted=false.
+Search/research remains unsupported unless the existing resolver validates that intent.
+
+Audio/trace persistence requires explicit invocation flags and per-operation consent.
+Private text display requires --show-transcript; text-containing saves require explicit
+approval. Only allowlisted diagnostic fields may be saved outside Git/known sync roots;
+never embeddings, similarity, profile/provenance data, credentials or decoder segments.
+Use UUID filenames, size/duration bounds, atomic writes and no overwrite. Never commit
+or upload artifacts. No real microphone/model/profile/recording access during automated
+Phase 5A work. Use synthetic/fake inputs and temporary directories; preserve all prior
+phases and dependencies. See decision 0009 for exact CLI, privacy and testing limits.

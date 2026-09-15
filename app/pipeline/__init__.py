@@ -1,0 +1,1 @@
+"""Explicit diagnostics; never execution."""

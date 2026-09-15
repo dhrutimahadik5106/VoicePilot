@@ -85,3 +85,9 @@ data/commands/private/
 *.speaker-model.json
 .private-*.tmp
 .metadata-*.tmp
+
+# Phase 5A: explicit diagnostic artifacts, never automatic history
+*.vp-trace.json
+*.vp-audio.wav
+.vp-diagnostic-*.tmp
+/diagnostics/
