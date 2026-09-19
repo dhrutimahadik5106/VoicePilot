@@ -515,3 +515,16 @@ All adapters change synthetic in-memory state only; no application is opened.
 No audit database, profile access, microphone use, model loading or dependencies are
 introduced. See [decision 0010](docs/decisions/0010-controlled-execution-foundation.md)
 for the synthetic authorization boundary, privacy, evaluation and Phase 6A prerequisites.
+
+
+## Phase 6A: controlled Windows application launching
+
+The separate `app.launch.cli` supports explicit manual tests for Notepad, Calculator,
+Chrome and Spotify, conditional on protected installation and verified identity.
+Production voice execution remains disabled and calibration-pending denies before
+capture/STT. No playback, browser/input automation, arguments or arbitrary paths.
+Start with `python -m app.launch.cli list`, `status` and `discover`, using the existing
+venv Python. Launching requires the exact application ID and typed `LAUNCH <id>`.
+No real launch was performed during development or automated validation.
+See [decision 0011](docs/decisions/0011-controlled-windows-application-launching.md)
+for exact venv commands, security boundaries, configuration and honest limitations.

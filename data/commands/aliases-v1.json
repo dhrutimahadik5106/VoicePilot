@@ -217,6 +217,18 @@
           "provenance": "Maintainer-defined vocabulary entry, independent of seed sentences; not a pronunciation study."
         }
       ]
+    },
+    {
+      "entity_id": "notepad",
+      "canonical_name": "Notepad",
+      "kind": "application",
+      "aliases": []
+    },
+    {
+      "entity_id": "calculator",
+      "canonical_name": "Calculator",
+      "kind": "application",
+      "aliases": []
     }
   ]
 }

@@ -145,3 +145,16 @@ idempotency, cancellation and emergency stop. Never claim rollback without obser
 restored state. Audits are private-field-free, in memory only. Tests actively block real
 integrations and file access. No dependency installation or Phase 6A is approved.
 See decision 0010 for the fake-only boundary and future production prerequisites.
+
+
+## Phase 6A authorization
+
+Phase 6A supersedes earlier launch prohibitions only for the closed Windows adapter:
+Notepad, Calculator, safely discovered Chrome and Spotify; one app, no arguments,
+elevation, shell, arbitrary paths, protocols, scripts or shortcuts. Require held
+identity revalidation, exact expiring single-use consent and independent OS observation.
+Manual operator tests must be labelled as not voice authentication. Production stays
+default-off; pending calibration blocks before capture/STT/execution. Never perform
+real launches, microphone/model/profile tests during automated work. Use fakes and
+active side-effect guards. No close/kill, playback, browser/input automation or Phase
+6B. Preserve prior work and dependencies. See decision 0011.

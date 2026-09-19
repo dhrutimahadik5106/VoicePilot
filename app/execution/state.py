@@ -20,7 +20,8 @@ TRANSITIONS = MappingProxyType({state: frozenset(targets) for state, targets in 
 
 
 class Machine:
-    def __init__(self):
+    def __init__(self, *, event_factory=AuditEvent):
+        self.event_factory = event_factory
         self.state = State.CREATED
         self.events = []
         self.plan_id = None
@@ -30,7 +31,7 @@ class Machine:
     def move(self, state, reason="ok", duration=0):
         if state not in TRANSITIONS.get(self.state, set()):
             raise ExecutionError()
-        event = AuditEvent(plan_id=self.plan_id, step_id=self.step_id, capability=self.capability,
+        event = self.event_factory(plan_id=self.plan_id, step_id=self.step_id, capability=self.capability,
                            previous=self.state, state=state, reason=reason, duration=duration)
         self.events.append(event)
         self.state = state

@@ -2,7 +2,7 @@
 from dataclasses import dataclass, field
 from enum import StrEnum
 from threading import Event
-from typing import Literal, Protocol
+from typing import Literal, Protocol, TypeVar
 from uuid import UUID
 
 from pydantic import Field
@@ -35,15 +35,19 @@ class Observation(Model):
     execution_permitted: Literal[False] = False
 
 
-class Adapter(Protocol):
-    spec: AdapterSpec
-    input_schema: type
+Input = TypeVar("Input")
+Observed = TypeVar("Observed")
 
-    def precondition(self, step: FakeStep) -> bool: ...
-    def execute(self, key: tuple[UUID, str], step: FakeStep, cancel: Event) -> bool: ...
-    def observe(self, key: tuple[UUID, str]) -> Observation: ...
-    def verify(self, step: FakeStep, before: Observation, after: Observation) -> bool: ...
-    def rollback(self, key: tuple[UUID, str], before: Observation, cancel: Event) -> bool: ...
+
+class Adapter(Protocol[Input, Observed]):
+    spec: Model
+    input_schema: type[Input]
+
+    def precondition(self, step: Input) -> bool: ...
+    def execute(self, key: tuple[UUID, str], step: Input, cancel: Event) -> bool: ...
+    def observe(self, key: tuple[UUID, str]) -> Observed: ...
+    def verify(self, step: Input, before: Observed, after: Observed) -> bool: ...
+    def rollback(self, key: tuple[UUID, str], before: Observed, cancel: Event) -> bool: ...
 
 
 @dataclass

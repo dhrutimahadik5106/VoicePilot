@@ -87,7 +87,7 @@ class Risk(StrEnum):
     PROHIBITED="prohibited"
 
 class Arguments(Model):
-    application: Literal["spotify","whatsapp","chrome","chrome_beta","youtube"] | None = None
+    application: Literal["spotify","whatsapp","chrome","chrome_beta","youtube","notepad","calculator"] | None = None
     media: Literal["taare_zameen_par","taare_soundtrack"] | None = None
     control: Literal["pause","resume","stop","next","previous","volume_up","volume_down","mute","unmute"] | None = None
 

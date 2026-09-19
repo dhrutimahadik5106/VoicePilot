@@ -269,3 +269,15 @@ latches cancellation; bounded retry applies only to idempotent fake effects.
 Rollback is claimed only after independent restoration observation. Audit events
 contain no transcript, entity value or biometric evidence and are never persisted.
 See decision 0010 for the state graph, limitations and future production boundary.
+
+
+## Phase 6A launch extension
+
+The earlier phase descriptions above are historical. `app.launch` now supplies a
+separate closed Windows launch path. `allowlist` owns fixed identities; `windows`
+validates held candidates and independently observes processes; `winapi` lazily
+wraps native APIs; `authorization` binds manual or protected authenticated evidence;
+`controller` uses the Phase 5B adapter contract and state transitions; `cli` exposes
+inspection and deliberate manual consent. Settings.launch defaults production off.
+Existing diagnostics, fake execution and simulation remain non-executing. No new
+persistence or dependencies. See decision 0011 for the full boundary and limitations.
