@@ -59,7 +59,7 @@ def test_independent_process_observation():
     initial = backend.discover("notepad", 5)
     assert not backend.observe("notepad", initial.identity, 5).matched
     native.processes = [(12, "C:/Windows/System32/notepad.exe")]
-    assert backend.observe("notepad", initial.identity, 5).matched
+    assert not backend.observe("notepad", initial.identity, 5).matched
     native.version += 1
     assert not backend.observe("notepad", initial.identity, 5).matched
 
@@ -76,8 +76,7 @@ def test_untrusted_process_paths_not_read(path):
 
 
 @pytest.mark.parametrize("app,tail", [
-    ("calculator", "Microsoft.WindowsCalculator_1.0.0.0_x64__8wekyb3d8bbwe/CalculatorApp.exe"),
-    ("notepad", "Microsoft.WindowsNotepad_1.0.0.0_x64__8wekyb3d8bbwe/Notepad/Notepad.exe")])
+    ("calculator", "Microsoft.WindowsCalculator_1.0.0.0_x64__8wekyb3d8bbwe/CalculatorApp.exe")])
 def test_fixed_package_identity_observed(app, tail):
     native = NativeFake()
     native.processes = [(12, "C:/Program Files/WindowsApps/" + tail)]

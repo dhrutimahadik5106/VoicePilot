@@ -29,7 +29,7 @@ def voice_status(settings):
 def main(argv=None, *, settings=None, backend=None, read=input, write=print, recorder=None, pipeline=None):
     parser = Parser(description="Allowlisted Windows launch only; explicit confirmation required")
     sub = parser.add_subparsers(dest="command", required=True)
-    for name in ("list", "status", "authenticated-voice-status"):
+    for name in ("list", "status", "authenticated-voice-status", "diagnose-notepad"):
         sub.add_parser(name)
     discover = sub.add_parser("discover")
     discover.add_argument("application", nargs="?")
@@ -54,6 +54,9 @@ def main(argv=None, *, settings=None, backend=None, read=input, write=print, rec
             write(json.dumps(voice_status(settings)))
             return 0
         backend = backend or WindowsBackend()
+        if args.command == "diagnose-notepad":
+            write(json.dumps(backend.notepad_diagnostics()))
+            return 0
         if args.command == "discover":
             ids = (resolve_application(args.application),) if args.application else cfg.approved_application_ids
             for app in ids:

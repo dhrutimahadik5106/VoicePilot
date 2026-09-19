@@ -137,3 +137,99 @@ Windows API references:
 - https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-createprocessw
 - https://learn.microsoft.com/en-us/windows/win32/api/wintrust/nf-wintrust-winverifytrust
 - https://learn.microsoft.com/en-us/windows/win32/api/wintrust/ns-wintrust-wintrust_catalog_info
+
+
+## Phase 6A correction: modern Notepad observation
+
+The user manually confirmed that Notepad opened but returned identity_mismatch /
+unverified; Calculator and Chrome returned launched_and_verified. No application
+was launched by the agent while diagnosing or validating this correction.
+
+Read-only inspection reproduced an identity-validation defect for the installed
+Microsoft.WindowsNotepad package: opening the WindowsApps container fails with
+access denied, the old DACL parser rejects a conditional read/execute ACE, and the
+final packaged executable does not satisfy the launcher's version-resource query.
+The packaged executable's Microsoft signature does validate. After correction,
+read-only installed-package validation passes. No Notepad process was running at
+diagnosis time, so the historical launcher/replacement PIDs, parent relationship,
+reuse behavior and timing cannot be reconstructed from the earlier result alone.
+
+The previous observer discarded CreateProcessW's PID and accepted package path
+patterns without querying process package identity or tying the process to a launch.
+This correction replaces that behavior for Notepad only. Calculator/Chrome/Spotify
+keep their existing observation paths; the general launch allowlist is unchanged.
+
+Accepted final identities are:
+
+- Legacy: the exact approved system notepad.exe, matching the confirmed image
+  identity and returned PID/start time, when no modern Notepad package is registered.
+- Modern: executable Notepad/Notepad.exe beneath the Windows-registered package
+  root in the OS Program Files/WindowsApps location; exact family
+  Microsoft.WindowsNotepad_8wekyb3d8bbwe; exact application user model identity
+  Microsoft.WindowsNotepad_8wekyb3d8bbwe!App; full package name matching
+  Microsoft.WindowsNotepad_<four-part numeric version>_<x64|x86|arm64>__8wekyb3d8bbwe.
+  The full process package name must resolve through GetPackagePathByFullName to
+  exactly that root. Partial/similar names, resource packages, alternate publishers,
+  user/network locations and arbitrary registrations are rejected.
+
+Modern observation holds and verifies the protected Program Files anchor, registered
+package root, Notepad directory and executable. It checks canonical paths, reparse
+flags, write permissions and the executable's exact Microsoft signing organization.
+It does not require opening the intentionally restricted WindowsApps container.
+Windows package registration supplies that container relationship; held canonical
+package handles and package ACLs/signature supply independent protection evidence.
+Only conditional READ/EXECUTE ACEs may be skipped when checking these Notepad package
+objects for writes. Conditional write or unknown ACEs still fail closed. Other
+application ACL validation is unchanged. The package identity and signature replace
+legacy version-resource metadata for final observation only. The system launch
+identity remains exactly notepad.exe; metadata allows exactly NOTEPAD.EXE.MUI;
+.mui files are never executable targets.
+
+Before creation, capture a bounded Notepad-only PID/start-time baseline and whether
+a modern package is registered. Keep the actual returned process handle and its
+GetProcessTimes creation timestamp through observation, preventing launcher PID
+reuse while proving correlation. Accept only that PID with that exact timestamp,
+or a new directly parent-correlated replacement PID created no earlier than it.
+Reject baseline instances, unrelated new processes, impossible future timestamps,
+identity mismatches and observations outside the bounded deadline. The launcher
+may exit before its child is observed; its retained handle remains correlation
+evidence, not success evidence. A registered modern package prevents a transient
+system broker from being mistaken for the final application. Recheck final process
+liveness, PID/start time, parent and package/path identity after signature validation.
+Release handles on every controller exit; never kill/close the application.
+
+Notepad no longer treats a pre-existing process as an already-running success for
+this request. If Windows reuses an existing Notepad instance, or a broker creates a
+new process with no provable direct relationship, this conservative implementation
+returns unverified. Time proximity or matching window titles are not sufficient.
+It does not implement ETW activation tracing, arbitrary ancestry inference or a
+window/document-based reuse detector. The exact handoff on this machine still
+requires the user's manual retest; no real post-fix launch success is claimed.
+
+A narrow diagnostic is available:
+
+```powershell
+.\venv\Scripts\python.exe -m app.launch.cli diagnose-notepad
+```
+
+It never launches or prompts. It queries only exact Notepad process entries and
+reports PID, fixed executable name, safe location classification, aggregate identity
+and publisher-validation status, exact approved family/AUMID or a closed placeholder,
+creation timestamp and report time. It explicitly labels launch correlation as not
+available in this independent read-only snapshot. It never reports unrelated process
+identities, parent process details, command lines, titles, documents, usernames or
+raw paths, and writes no artifact. A snapshot cannot retrospectively prove the
+handoff of a completed earlier request.
+
+Regression tests use native API fakes and generated process identities: legacy and
+modern same-PID cases, correlated replacement after launcher exit, existing/unrelated
+processes, PID reuse, wrong family/AUMID/package/name/publisher/signature/location,
+write/reparse failures, delayed/no final observation, creation-only false success,
+transient brokers, final process exit and diagnostic privacy. No dependencies change.
+
+Relevant API contracts:
+- https://learn.microsoft.com/en-us/windows/win32/api/appmodel/nf-appmodel-getpackagefamilyname
+- https://learn.microsoft.com/en-us/windows/win32/api/appmodel/nf-appmodel-getapplicationusermodelid
+- https://learn.microsoft.com/en-us/windows/win32/api/appmodel/nf-appmodel-getpackagepathbyfullname
+- https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-getprocesstimes
+- https://learn.microsoft.com/en-us/windows/win32/api/tlhelp32/ns-tlhelp32-processentry32w

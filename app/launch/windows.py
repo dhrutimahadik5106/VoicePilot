@@ -22,6 +22,7 @@ class WindowsBackend:
     def __init__(self, *, native=None, clock=monotonic):
         self._native = native
         self.clock = clock
+        self._notepad_attempt = None
 
     @property
     def native(self):
@@ -106,10 +107,23 @@ class WindowsBackend:
                 return
         raise LaunchError(Status.NOT_INSTALLED)
 
-    def launch(self, image):
+    def launch(self, image, *, guard=lambda: None):
         if type(image) is not ValidatedImage:
             raise LaunchError(Status.IDENTITY_MISMATCH)
         system, _ = self.native.roots()
+        if image.path == PureWindowsPath(system) / "notepad.exe":
+            from app.launch.notepad import CreatedProcess, NotepadAttempt
+            self.finish_notepad()
+            baseline = frozenset((p.pid, p.created) for p in self.native.notepad_processes())
+            package_expected = self.native.notepad_package_registered()
+            guard()
+            started = self.clock()
+            process = self.native.create_process(image.path, system, retain=True)
+            if type(process) is not CreatedProcess or process.created <= 0:
+                raise LaunchError(Status.OBSERVATION_UNAVAILABLE)
+            self._notepad_attempt = NotepadAttempt(baseline, process, started, package_expected)
+            return process.pid
+        guard()
         return self.native.create_process(image.path, system)
 
     def packaged_root(self, application_id, path):
@@ -131,6 +145,8 @@ class WindowsBackend:
         return None
 
     def observe(self, application_id, identity, timeout):
+        if application_id == "notepad":
+            return self.observe_notepad(identity, timeout)
         start = self.clock()
         paths = {path: root for path, root in self.candidates(application_id)}
         for pid, text in self.native.process_paths():
@@ -149,3 +165,107 @@ class WindowsBackend:
                 if image.identity == identity or packaged is not None:
                     return ProcessObservation(application_id=application_id, identity=identity, matched=True)
         return ProcessObservation(application_id=application_id, identity=identity, matched=False)
+
+
+    def finish_notepad(self):
+        attempt, self._notepad_attempt = self._notepad_attempt, None
+        if attempt is not None:
+            self.native.close(attempt.process.handle)  # Release handle; never terminate the process.
+
+    @contextmanager
+    def validate_notepad_process(self, record, identity):
+        """Separate final-package identity from the unchanged system-launcher identity."""
+        from app.launch.notepad import FAMILY, AUMID, PACKAGE_PATTERN, NotepadProcess
+        if type(record) is not NotepadProcess:
+            raise LaunchError(Status.IDENTITY_MISMATCH)
+        path = PureWindowsPath(record.path)
+        system, programs = self.native.roots()
+        if path == PureWindowsPath(system) / "notepad.exe":
+            if record.package or record.family or record.aumid:
+                raise LaunchError(Status.IDENTITY_MISMATCH)
+            with self.validate_image("notepad", path, PureWindowsPath(system)) as image:
+                if image.identity != identity:
+                    raise LaunchError(Status.IDENTITY_MISMATCH)
+                yield "legacy_system"
+            return
+        if (record.family != FAMILY or record.aumid != AUMID
+                or re.fullmatch(PACKAGE_PATTERN, record.package) is None):
+            raise LaunchError(Status.IDENTITY_MISMATCH)
+        registered = PureWindowsPath(self.native.package_path(record.package))
+        program = next((PureWindowsPath(p) for p in programs
+                        if registered == PureWindowsPath(p) / "WindowsApps" / record.package), None)
+        if program is None or path != registered / "Notepad" / "Notepad.exe":
+            raise LaunchError(Status.IDENTITY_MISMATCH)
+        validate_path(str(path), str(registered), ("notepad.exe",))
+        # WindowsApps deliberately denies container opens to standard users. Trust
+        # Windows' exact registered package location, then verify/hold the package
+        # root and descendants themselves, plus its protected Program Files anchor.
+        with ExitStack() as stack:
+            for item in (program, registered, registered / "Notepad", path):
+                attrs = self.native.attributes(item)
+                if attrs & 0x400 or bool(attrs & 0x10) != (item != path):
+                    raise LaunchError(Status.IDENTITY_MISMATCH)
+                handle = self.native.lock(item, directory=item != path)
+                stack.callback(self.native.close, handle)
+                if PureWindowsPath(self.native.final_path(handle)) != item:
+                    raise LaunchError(Status.IDENTITY_MISMATCH)
+                self.native.protected(handle, package=item != program)
+            if self.native.publisher(path, handle) not in ALLOWLIST["notepad"].publishers:
+                raise LaunchError(Status.IDENTITY_MISMATCH)
+            # Package identity + exact signed executable replace legacy MUI metadata
+            # for observation only. No new executable launch target is introduced.
+            yield "protected_notepad_package"
+
+    def observe_notepad(self, identity, timeout):
+        result = dict(application_id="notepad", identity=identity, matched=False)
+        attempt = self._notepad_attempt
+        if attempt is None:
+            return ProcessObservation(**result)
+        start = self.clock()
+        for record in self.native.notepad_processes():
+            if self.clock() - start >= timeout:
+                raise LaunchError(Status.TIMED_OUT)
+            if not attempt.correlates(record):
+                continue
+            elapsed = self.clock() - attempt.started
+            if elapsed < 0 or (record.created - attempt.process.created) / 10_000_000 > elapsed + .001:
+                continue
+            with self.validate_notepad_process(record, identity) as classification:
+                if attempt.package_expected and classification == "legacy_system":
+                    continue  # The system broker is not the final modern application.
+                # Recheck liveness and start-time identity after filesystem/signature work.
+                current = self.native.notepad_processes()
+                still_live = any((p.pid, p.parent_pid, p.created, p.path, p.family, p.package, p.aumid)
+                    == (record.pid, record.parent_pid, record.created, record.path, record.family, record.package, record.aumid)
+                    for p in current)
+                if self.clock() - start >= timeout:
+                    raise LaunchError(Status.TIMED_OUT)
+                if still_live:
+                    result["matched"] = True
+                    return ProcessObservation(**result)
+        return ProcessObservation(**result)
+
+    def notepad_diagnostics(self):
+        """Read-only, allowlisted report; no raw paths, titles or command lines."""
+        from datetime import datetime, timezone
+        from app.launch.notepad import FAMILY, AUMID
+        discovery = self.discover("notepad", 5)
+        reports = []
+        start = self.clock()
+        for record in self.native.notepad_processes():
+            if self.clock() - start >= 5:
+                raise LaunchError(Status.TIMED_OUT)
+            classification, valid = "unverified", False
+            try:
+                with self.validate_notepad_process(record, discovery.identity) as classification:
+                    valid = True
+            except LaunchError:
+                classification = "unverified"
+            reports.append({"pid": record.pid, "filename": "notepad.exe",
+                "location": classification, "identity_validated": valid,
+                "publisher_validation": "verified_microsoft" if valid else "not_verified",
+                "package_family": FAMILY if record.family == FAMILY else "not_approved_or_absent",
+                "application_identity": AUMID if record.aumid == AUMID else "not_approved_or_absent",
+                "created_filetime": record.created, "launch_correlation": "not_available_read_only"})
+        return {"mode": "read_only_notepad_identity", "timestamp": datetime.now(timezone.utc).isoformat(),
+                "processes": reports, "execution_permitted": False}

@@ -35,7 +35,7 @@ def test_one_verified_launch(setup, app):
 def test_already_running_no_process_creation(setup):
     backend, controller = setup
     backend.already = True
-    result = controller.run(*grant())
+    result = controller.run(*grant("chrome"))
     assert result.status == Status.ALREADY_RUNNING and backend.created == 0
     assert not result.process_creation_attempted and result.process_observed
 

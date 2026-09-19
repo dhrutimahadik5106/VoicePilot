@@ -145,14 +145,14 @@ class Native:
         # Kernel canonical drive paths have a fixed four-character device prefix.
         return value[4:] if value.startswith(chr(92) * 2 + "?" + chr(92)) else value
 
-    def protected(self, handle):
+    def protected(self, handle, *, package=False):
         descriptor, dacl = P(), P()
         get = function(self.security, "GetSecurityInfo", D, H, C.c_int, D, P, P, P, P, C.POINTER(P))
         if get(handle, 1, 7, None, None, C.byref(dacl), None, C.byref(descriptor)):
             raise LaunchError(Status.IDENTITY_MISMATCH)
         token = duplicate = None
         try:
-            self._check_dacl(dacl)
+            self._check_dacl(dacl, package=package)
             token = self._token()
             duplicate = H()
             if not function(self.security, "DuplicateToken", W.BOOL, H, C.c_int, C.POINTER(H))(token, 2, C.byref(duplicate)):
@@ -175,7 +175,7 @@ class Native:
                 self.close(token)
             function(self.kernel, "LocalFree", H, H)(descriptor)
 
-    def _check_dacl(self, dacl):
+    def _check_dacl(self, dacl, *, package=False):
         if not dacl:
             raise LaunchError(Status.IDENTITY_MISMATCH)
         info = (D * 3)()
@@ -192,9 +192,13 @@ class Native:
             header = C.cast(ace, C.POINTER(C.c_ubyte))
             if header[0] == 1 or header[1] & 8:
                 continue
+            mask = C.cast(ace.value + 4, C.POINTER(D))[0]
+            # Notepad packages contain conditional READ/EXECUTE ACEs. These cannot
+            # grant any write authority; conditional write ACEs still fail closed.
+            if package and header[0] == 9 and not mask & (0xD0156 | 0x50000000):
+                continue
             if header[0] != 0:
                 raise LaunchError(Status.IDENTITY_MISMATCH)
-            mask = C.cast(ace.value + 4, C.POINTER(D))[0]
             if not mask & (0xD0156 | 0x50000000):
                 continue
             sid = P()
@@ -304,7 +308,7 @@ class Native:
             raise LaunchError(Status.IDENTITY_MISMATCH)
         return C.wstring_at(pointer, length.value).rstrip(chr(0))
 
-    def create_process(self, path, directory):
+    def create_process(self, path, directory, *, retain=False):
         self._check_not_elevated()
         startup, process = Startup(), ProcessInfo()
         startup.size = C.sizeof(startup)
@@ -314,11 +318,18 @@ class Native:
         if not create(str(path), None, None, None, False, 0, None, str(directory),
                       C.byref(startup), C.byref(process)):
             raise LaunchError(Status.LAUNCH_FAILED)
+        retained = False
         try:
+            if retain:
+                from app.launch.notepad import CreatedProcess
+                result = CreatedProcess(process.pid, self.process_created(process.process), process.process)
+                retained = True
+                return result
             return process.pid
         finally:
             self.close(process.thread)
-            self.close(process.process)
+            if not retained:
+                self.close(process.process)
 
     def process_paths(self):
         pids = (D * 4096)()
@@ -337,3 +348,107 @@ class Native:
             finally:
                 self.close(handle)
         return tuple(result)
+
+
+    def process_created(self, handle):
+        times = [W.FILETIME() for _ in range(4)]
+        fn = function(self.kernel, "GetProcessTimes", W.BOOL, H,
+                      *([C.POINTER(W.FILETIME)] * 4))
+        if not fn(handle, *(C.byref(t) for t in times)):
+            raise LaunchError(Status.OBSERVATION_UNAVAILABLE)
+        return (times[0].dwHighDateTime << 32) | times[0].dwLowDateTime
+
+    def package_string(self, handle, name):
+        size = D(256)
+        buffer = C.create_unicode_buffer(size.value)
+        result = function(self.kernel, name, C.c_long, H, C.POINTER(D), W.LPWSTR)(
+            handle, C.byref(size), buffer)
+        if result in (15700, 15703):  # No package / no application identity.
+            return ""
+        if result or not 0 < size.value <= len(buffer):
+            raise LaunchError(Status.OBSERVATION_UNAVAILABLE)
+        return buffer.value
+
+    def package_path(self, full_name):
+        size = D(32768)
+        buffer = C.create_unicode_buffer(size.value)
+        fn = function(self.kernel, "GetPackagePathByFullName", C.c_long,
+                      W.LPCWSTR, C.POINTER(D), W.LPWSTR)
+        if fn(full_name, C.byref(size), buffer) or not 0 < size.value <= len(buffer):
+            raise LaunchError(Status.IDENTITY_MISMATCH)
+        return buffer.value
+
+    def notepad_processes(self):
+        """Query only exact Notepad entries; never collect titles or command lines."""
+        from app.launch.notepad import NotepadProcess
+        class ProcessEntry(C.Structure):
+            _fields_ = [("size", D), ("usage", D), ("pid", D), ("heap", C.c_size_t),
+                        ("module", D), ("threads", D), ("parent", D),
+                        ("priority", W.LONG), ("flags", D), ("name", W.WCHAR * 260)]
+        snapshot = function(self.kernel, "CreateToolhelp32Snapshot", H, D, D)(2, 0)
+        if snapshot in (None, C.c_void_p(-1).value):
+            raise LaunchError(Status.OBSERVATION_UNAVAILABLE)
+        records = []
+        try:
+            entry = ProcessEntry()
+            entry.size = C.sizeof(entry)
+            first = function(self.kernel, "Process32FirstW", W.BOOL, H, C.POINTER(ProcessEntry))
+            following = function(self.kernel, "Process32NextW", W.BOOL, H, C.POINTER(ProcessEntry))
+            more = first(snapshot, C.byref(entry))
+            for _ in range(4096):
+                if not more:
+                    if C.get_last_error() != 18:  # ERROR_NO_MORE_FILES
+                        raise LaunchError(Status.OBSERVATION_UNAVAILABLE)
+                    return tuple(records)
+                if entry.name.casefold() == "notepad.exe":
+                    if len(records) >= 32:
+                        raise LaunchError(Status.OBSERVATION_UNAVAILABLE)
+                    handle = function(self.kernel, "OpenProcess", H, D, W.BOOL, D)(0x101000, False, entry.pid)
+                    if not handle:
+                        # A disappearing snapshot entry can be retried; access denial is not absence.
+                        if C.get_last_error() != 87:
+                            raise LaunchError(Status.OBSERVATION_UNAVAILABLE)
+                    else:
+                        try:
+                            size = D(32768)
+                            path = C.create_unicode_buffer(size.value)
+                            query = function(self.kernel, "QueryFullProcessImageNameW", W.BOOL,
+                                             H, D, W.LPWSTR, C.POINTER(D))
+                            if not query(handle, 0, path, C.byref(size)):
+                                raise LaunchError(Status.OBSERVATION_UNAVAILABLE)
+                            created = self.process_created(handle)
+                            record = NotepadProcess(pid=entry.pid, parent_pid=entry.parent,
+                                created=created, path=path.value,
+                                family=self.package_string(handle, "GetPackageFamilyName"),
+                                package=self.package_string(handle, "GetPackageFullName"),
+                                aumid=self.package_string(handle, "GetApplicationUserModelId"))
+                            # A handle, start time and liveness check prevent accepting an exited/reused PID.
+                            wait = function(self.kernel, "WaitForSingleObject", D, H, D)(handle, 0)
+                            if wait == 258:
+                                records.append(record)
+                            elif wait != 0:
+                                raise LaunchError(Status.OBSERVATION_UNAVAILABLE)
+                        finally:
+                            self.close(handle)
+                more = following(snapshot, C.byref(entry))
+            raise LaunchError(Status.OBSERVATION_UNAVAILABLE)
+        finally:
+            self.close(snapshot)
+
+
+    def notepad_package_registered(self):
+        from app.launch.notepad import FAMILY, PACKAGE_PATTERN
+        import re
+        count, size = D(), D()
+        query = function(self.kernel, "GetPackagesByPackageFamily", C.c_long,
+                         W.LPCWSTR, C.POINTER(D), P, C.POINTER(D), P)
+        result = query(FAMILY, C.byref(count), None, C.byref(size), None)
+        if result not in (0, 122) or count.value > 32 or size.value > 32768:
+            raise LaunchError(Status.OBSERVATION_UNAVAILABLE)
+        if count.value == 0:
+            return False
+        names = (W.LPWSTR * count.value)()
+        buffer = C.create_unicode_buffer(size.value)
+        if query(FAMILY, C.byref(count), names, C.byref(size), buffer):
+            raise LaunchError(Status.OBSERVATION_UNAVAILABLE)
+        return any(re.fullmatch(PACKAGE_PATTERN, name) is not None for name in names if name)

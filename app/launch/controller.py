@@ -35,7 +35,11 @@ class WindowsLaunchAdapter:
                 raise LaunchError(Status.TIMED_OUT)
             launch_start = self.clock()
             self.attempted = True
-            self.backend.launch(image)
+            def launch_guard():
+                self.guard()
+                if self.clock() - launch_start >= self.configuration.launch_timeout:
+                    raise LaunchError(Status.TIMED_OUT)
+            self.backend.launch(image, guard=launch_guard)
             if self.clock() - launch_start >= self.configuration.launch_timeout:
                 raise LaunchError(Status.TIMED_OUT)
         self.plans[key] = step
@@ -132,7 +136,7 @@ class LaunchController:
             if (type(before) is not ProcessObservation or not before.available
                     or before.application_id != plan.application_id or before.identity != plan.identity):
                 raise LaunchError(Status.OBSERVATION_UNAVAILABLE)
-            already = verify_observation(plan, before)
+            already = plan.application_id != "notepad" and verify_observation(plan, before)
             machine.move(State.RUNNING, Status.AVAILABLE)
             if not already:
                 adapter = WindowsLaunchAdapter(self.backend, self.configuration, guard, self.clock)
@@ -143,7 +147,7 @@ class LaunchController:
                 if self.clock() - launch_start >= self.configuration.launch_timeout + self.configuration.discovery_timeout:
                     raise LaunchError(Status.TIMED_OUT)
             machine.move(State.OBSERVING, Status.AVAILABLE)
-            after = before
+            after = before if already else None
             end = self.clock() + self.configuration.observation_timeout
             for _ in range(301):
                 guard()
@@ -154,6 +158,10 @@ class LaunchController:
                     break
                 after = self.backend.observe(plan.application_id, plan.identity, max(.001, end - self.clock()))
                 guard()
+                if self.clock() >= end:
+                    if verify_observation(plan, after):
+                        raise LaunchError(Status.TIMED_OUT)
+                    break
                 if type(after) is not ProcessObservation or not after.available:
                     raise LaunchError(Status.OBSERVATION_UNAVAILABLE)
                 if verify_observation(plan, after):
@@ -185,5 +193,12 @@ class LaunchController:
                                 process_creation_attempted=attempted, process_observed=False,
                                 execution_permitted=permitted, events=tuple(machine.events))
         finally:
+            if validated and plan.application_id == "notepad":
+                try:
+                    cleanup = getattr(self.backend, "finish_notepad", None)
+                    if cleanup is not None:
+                        cleanup()
+                except Exception:
+                    pass  # Handle cleanup cannot create a success or expose native errors.
             self._active = None
             self._lock.release()

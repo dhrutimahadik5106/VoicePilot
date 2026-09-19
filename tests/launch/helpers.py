@@ -41,7 +41,8 @@ class Backend:
             raise LaunchError(Status.IDENTITY_MISMATCH)
         yield object()
 
-    def launch(self, image):
+    def launch(self, image, *, guard=lambda: None):
+        guard()
         self.calls.append("launch")
         self.created += 1
         self.on_launch()
@@ -100,7 +101,7 @@ class NativeFake:
     def final_path(self, handle):
         return "C:/untrusted/other.exe" if self.mismatch else self.handles[handle]
 
-    def protected(self, handle):
+    def protected(self, handle, *, package=False):
         self.calls.append("protected")
         if self.writable:
             raise LaunchError(Status.IDENTITY_MISMATCH)
