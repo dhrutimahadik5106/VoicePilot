@@ -95,3 +95,7 @@ data/commands/private/
 # Phase 6B consented screenshot artifacts
 *.vp-screen.bmp
 .vp-screen-*.tmp
+
+# Phase 6B.1 encrypted owner calibration summaries
+*.owner-calibration
+.owner-*.tmp

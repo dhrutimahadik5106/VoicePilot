@@ -27,7 +27,7 @@ def isolated_environment(monkeypatch, tmp_path):
 
 def test_safe_defaults(tmp_path):
     settings = Settings()
-    assert settings.model_dump(exclude={"speaker", "planning", "execution", "launch", "operations"}) == {
+    assert settings.model_dump(exclude={"speaker", "planning", "execution", "launch", "operations", "owner"}) == {
         "app_name": "VoicePilot", "environment": "development", "debug": False,
         "log_level": "INFO", "data_dir": Path("data"), "log_dir": Path("logs"),
         "llm_provider": "disabled", "ollama_base_url": "http://localhost:11434",
@@ -61,6 +61,8 @@ def test_safe_defaults(tmp_path):
     assert settings.planning.trace_root is None
     assert settings.execution.enabled is False
     assert settings.execution.fake_only is True
+    assert settings.owner.calibration_enabled is False
+    assert settings.owner.pilot_enabled is False
     assert settings.operations.enabled is False
     assert settings.operations.screenshot_enabled is False
     assert settings.launch.real_execution_enabled is False

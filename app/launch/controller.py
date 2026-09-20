@@ -80,10 +80,12 @@ class LaunchController:
     def run(self, plan, permit, authority, *, cancel=None):
         if not self._lock.acquire(blocking=False):
             return LaunchResult(status=Status.INVALID_AUTHORIZATION, state=State.BLOCKED)
+        from app.owner.authorization import LaunchAuthority
         permitted = False
         validated = False
         attempted = False
         observed = False
+        backend_accessed = False
         adapter = None
         cancellation_context = None
         machine = Machine(event_factory=lambda **data: LaunchAudit(**data, execution_permitted=permitted))
@@ -93,7 +95,7 @@ class LaunchController:
                 raise LaunchError(Status.TIMED_OUT)
             plan_document(plan)
             validated = True
-            if type(authority) not in {ManualAuthority, VoiceAuthority} or plan.mode != authority.mode:
+            if type(authority) not in {ManualAuthority, VoiceAuthority, LaunchAuthority} or plan.mode != authority.mode:
                 raise LaunchError(Status.INVALID_AUTHORIZATION)
             if (not self.configuration.windows_adapter_enabled
                     or plan.application_id not in self.configuration.approved_application_ids
@@ -111,6 +113,12 @@ class LaunchController:
             if self.stop.is_set() or self._active.is_set():
                 raise LaunchError(Status.EMERGENCY_STOPPED if self.stop.is_set() else Status.CANCELLED)
             machine.move(State.AWAITING, Status.AVAILABLE)
+            if type(authority) is LaunchAuthority:
+                synthetic = getattr(authority, "synthetic", None)
+                if type(synthetic) is not bool or (
+                    synthetic and getattr(self.backend, "fake", False) is not True
+                ):
+                    raise LaunchError(Status.ACCESS_DENIED)
             expires = authority.consume(plan, permit)
             if not expires or plan.plan_id in self._used or len(self._used) >= 100:
                 raise LaunchError(Status.INVALID_AUTHORIZATION)
@@ -119,6 +127,13 @@ class LaunchController:
             machine.move(State.AUTHORIZED, Status.AVAILABLE)
 
             def guard():
+                if type(authority) is LaunchAuthority:
+                    synthetic = getattr(authority, "synthetic", None)
+                    if type(synthetic) is not bool or (
+                        synthetic and getattr(self.backend, "fake", False) is not True
+                    ):
+                        raise LaunchError(Status.ACCESS_DENIED)
+                    authority.validate_live()
                 if self.stop.is_set():
                     raise LaunchError(Status.EMERGENCY_STOPPED)
                 if self._active.is_set():
@@ -133,6 +148,7 @@ class LaunchController:
             guard()
             # Independent OS observation is separate from adapter return values.
             initial_start = self.clock()
+            backend_accessed = True
             before = self.backend.observe(plan.application_id, plan.identity, self.configuration.observation_timeout)
             guard()
             if self.clock() - initial_start >= self.configuration.observation_timeout:
@@ -197,7 +213,7 @@ class LaunchController:
                                 process_creation_attempted=attempted, process_observed=False,
                                 execution_permitted=permitted, events=tuple(machine.events))
         finally:
-            if validated and plan.application_id == "notepad":
+            if backend_accessed and plan.application_id == "notepad":
                 try:
                     cleanup = getattr(self.backend, "finish_notepad", None)
                     if cleanup is not None:

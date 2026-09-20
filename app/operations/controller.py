@@ -48,6 +48,7 @@ class Controller:
         return result
 
     def run(self, plan, permit=None, authority=None, *, cancel=None):
+        from app.owner.authorization import OperationAuthority
         started = self.clock()
         try:
             plan = validate_plan(plan)
@@ -79,6 +80,13 @@ class Controller:
             if cancel is not None and type(cancel) is not Signal:
                 raise OperationError(Code.INVALID)
             def guard():
+                if type(authority) is OperationAuthority:
+                    synthetic = getattr(authority, "synthetic", None)
+                    if type(synthetic) is not bool or (
+                        synthetic and getattr(self.backend, "fake", False) is not True
+                    ):
+                        raise OperationError(Code.DENIED)
+                    authority.validate_live()
                 elapsed = self.clock() - started
                 if self.hub.stopped.is_set():
                     raise OperationError(Code.STOPPED)
@@ -101,13 +109,14 @@ class Controller:
             with self.hub.track(active):
                 machine.move(State.VALIDATING, Code.READ)
                 guard()
-                if mutation and (not self.configuration.enabled or not self.configuration.manual_testing_enabled):
+                if mutation and (not self.configuration.enabled or
+                                 type(authority) is not OperationAuthority and not self.configuration.manual_testing_enabled):
                     raise OperationError(Code.DENIED)
                 if cap == C.SCREENSHOT and not self.configuration.screenshot_enabled:
                     raise OperationError(Code.DENIED)
                 machine.move(State.AWAITING, Code.CONFIRMATION)
-                if mutation:
-                    if type(authority) is not ManualAuthority:
+                if mutation or type(authority) is OperationAuthority:
+                    if type(authority) not in {ManualAuthority, OperationAuthority}:
                         raise OperationError(Code.CONFIRMATION)
                     deadline = authority.consume(plan, permit)
                     if plan.action_id in self.used or len(self.used) >= 1000:

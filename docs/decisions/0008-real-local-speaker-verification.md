@@ -179,3 +179,12 @@ privacy-preserving collection, held-out evaluation and auditable fail-closed gat
 It is not evidence of Hindi/Marathi/accent robustness or replay/deepfake resistance.
 Anti-spoofing remains unavailable. The next proposed activity is user-led, consented
 manual enrollment/calibration and measured evaluation, requiring no execution feature.
+
+
+## Phase 6B.1 compatibility note
+
+The legacy research calibration workflow above remains unchanged. A separately enabled
+personal owner-pilot protocol now uses the same schema-1 profile and DPAPI stack, with
+fresh owner/non-owner/holdout evidence and prompted challenges. It does not migrate the
+profile or turn its pending flag into approval. See [decision 0013](0013-owner-speaker-calibration-and-authenticated-voice-pilot.md)
+for the new CLI, encrypted summaries, privacy, revocation and one-command execution boundary.

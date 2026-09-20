@@ -169,3 +169,15 @@ denied before capture/STT. Tests must use fakes and temporary storage; never per
 real mutation, capture, launch or device/model/profile access. Preserve exact consent,
 single-use argument binding, independent observation, process-local cancellation and
 bounded privacy-filtered history. No dependencies were added for this phase.
+
+
+## Phase 6B.1 authorization
+
+Phase 6B.1 permits only the separately enabled owner calibration and narrow authenticated
+voice pilot in decision 0013. Preserve existing profile identity/encryption and the legacy
+research policy; no silent migration. Default calibration/pilot off, raw audio retention
+unsupported, screenshots manual, brightness mutation unsupported. Automated work must
+use fakes with guards: never access real microphone/profile/DPAPI profile/model/network
+or Windows actions. Never perform owner calibration or a voice pilot test yourself.
+Keep one command per challenge, command-speaker verification, provenance/expiry/single-use
+binding, uncertainty and independent observation. No Phase 6C or unrelated actions.

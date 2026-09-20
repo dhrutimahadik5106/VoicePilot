@@ -1,0 +1,64 @@
+"""Explicit local wiring; constructing these dependencies never captures or loads models."""
+from app.owner.models import OwnerError
+from app.owner.calibration import Calibration
+from app.owner.storage import Store
+from app.speaker.interactive import LocalSpeakerSession
+
+
+class Runtime:
+    def __init__(self, settings, *, read=input, write=print):
+        self.settings, self.read, self.write = settings, read, write
+        self.local = LocalSpeakerSession(settings, read=read, write=write)
+        self._stt = None
+        self._devices = {}
+
+    def transcribe_audio(self, audio, *, audio_id, cancel=None):
+        if self._stt is None:
+            from app.stt.service import TranscriptionService
+            from app.stt.faster_whisper_engine import FasterWhisperEngine
+            config = self.settings.model_copy(update={"stt_local_files_only": True})
+            self._stt = TranscriptionService(config, FasterWhisperEngine(config))
+        return self._stt.transcribe_audio(audio, audio_id=audio_id, cancel=cancel)
+
+    def capture(self, phrase, session, audio_id, *, guard):
+        guard()
+        if phrase is not None:
+            self.write("Speak this public challenge phrase: " + phrase)
+        else:
+            self.write("Authentication accepted. Speak ONE allowlisted command; this can execute a real action.")
+        if self.read("Microphone capture next. Press Enter to begin; any other input cancels: ") != "":
+            raise OwnerError("cancelled")
+        guard()  # Do not start capture after an expired wait at the prompt.
+        from app.audio.recorder import SoundDeviceRecorder
+        from app.audio.cli import terminal_control
+        if len(self._devices) >= 128 and session not in self._devices:
+            raise OwnerError("access_denied")
+        selected = self._devices.get(session)
+        cfg = self.settings.model_copy(update={"audio_input_device": selected[0] if selected else self.settings.audio_input_device,
+            "audio_sample_rate": 16000, "audio_channels": 1,
+            "audio_max_duration_seconds": self.settings.speaker.max_duration,
+            "audio_silence_stop_enabled": False})
+        self.write("Recording; Enter stops, c or Ctrl+C cancels. Raw audio is not saved.")
+        result = SoundDeviceRecorder(cfg).record(min(self.settings.speaker.capture_duration,
+            self.settings.speaker.max_duration), control=terminal_control)
+        guard()
+        if result.status != "succeeded":
+            raise OwnerError("cancelled" if result.status == "cancelled" else "capture_quality_failed")
+        device = result.device
+        if device is None:
+            raise OwnerError("binding_mismatch")
+        identity = (device.index, device.name, device.max_input_channels, device.default_sample_rate)
+        if selected is not None and identity != selected:
+            raise OwnerError("binding_mismatch")
+        self._devices[session] = identity
+        return result.audio
+
+    def calibration(self):
+        return Calibration(self.settings, self.local.repository(), Store(), self.local.engine,
+                           self, self.capture, cancel=self.local.cancel)
+
+    def pilot(self, calibration):
+        from app.owner.pilot import Pilot
+        from app.operations.controller import Controller
+        from app.launch.controller import LaunchController
+        return Pilot(calibration, Controller(self.settings.operations), LaunchController(self.settings.launch))

@@ -590,3 +590,18 @@ No screenshot content is inspected or uploaded. Deletion is not secure erasure.
 History and cancellation are process-local; a fresh command has no prior session history
 and cannot stop another process. Stop latches within its process; it does not close apps.
 The final authenticated-voice command intentionally returns denial (exit 2).
+
+
+## Phase 6B.1: owner calibration and authenticated voice pilot
+
+`app.owner.cli` provides separately enabled personal owner calibration and a one-command
+authenticated pilot. Existing profiles are preserved; no configuration toggle alone
+approves calibration. Raw audio/transcripts are never saved. Screenshot operations stay
+manual; brightness mutation remains unsupported. No real owner calibration or voice test
+was performed during implementation.
+
+Read [decision 0013](docs/decisions/0013-owner-speaker-calibration-and-authenticated-voice-pilot.md)
+for the audited existing speaker stack, exact consent/capture commands, required 8 owner /
+20 consenting non-owner / 4 holdout / 3 wrong-phrase trials, protection, revocation and
+replay limitations. Start with `python -m app.owner.cli inspect-config` and `privacy`,
+using the existing venv. Real manual calibration is explicitly user-operated.

@@ -296,3 +296,16 @@ in-memory event deque; screenshot storage is a separate consented local artifact
 work in one process, with cooperative cancellation and a latched emergency stop.
 Authenticated voice commands deny before capture/STT and cannot issue authorization.
 See [decision 0012](docs/decisions/0012-controlled-windows-basic-operations.md).
+
+
+## Phase 6B.1 owner pilot
+
+`app.owner` adds a separate, protected personal calibration protocol without profile
+migration. `calibration` owns evidence separation/frozen thresholds/lifecycle; `challenge`
+owns one-use expiring closed phrases; `storage` uses existing DPAPI and restricted private
+roots. `pilot` preflights calibration, verifies a prompted capture, verifies the separate
+command speaker, applies STT safety and a closed deterministic grammar, then mints one
+exact-plan permit for the existing launch/operations controllers. Each native guard
+rechecks current profile/calibration/model binding and expiry. Ordinary diagnostics and
+simulation cannot mint these permits. `runtime` constructs local dependencies lazily;
+`cli` requires explicit interactive consent and Enter per capture. See decision 0013.
