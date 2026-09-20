@@ -23,6 +23,11 @@ class Planner:
         self.resolver=resolver or CommandResolver.from_directory()
         self.risk_engine=risk_engine
 
+    def build_basic(self, text):
+        """Return a typed non-executing Phase 6B plan; no authorization is issued."""
+        from app.commands.basic import resolve_basic
+        return resolve_basic(text)
+
     def build(self, resolution, *, trace_id=None, authentication="unauthenticated_diagnostic"):
         trace_id=trace_id or uuid4()
         def stop(status,reason,risk=Risk.PROHIBITED):

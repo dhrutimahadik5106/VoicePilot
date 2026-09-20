@@ -157,4 +157,15 @@ Manual operator tests must be labelled as not voice authentication. Production s
 default-off; pending calibration blocks before capture/STT/execution. Never perform
 real launches, microphone/model/profile tests during automated work. Use fakes and
 active side-effect guards. No close/kill, playback, browser/input automation or Phase
-6B. Preserve prior work and dependencies. See decision 0011.
+6C. Phase 6B now follows decision 0012 below. Preserve prior work and dependencies.
+
+
+## Phase 6B maintenance boundaries
+
+Follow decision 0012. `app.operations` is a separate closed typed manual operations
+boundary; never route diagnostics or simulated plans to it. Keep controls/screenshots
+default off, native brightness mutation unsupported, and pending-calibration voice
+denied before capture/STT. Tests must use fakes and temporary storage; never perform
+real mutation, capture, launch or device/model/profile access. Preserve exact consent,
+single-use argument binding, independent observation, process-local cancellation and
+bounded privacy-filtered history. No dependencies were added for this phase.

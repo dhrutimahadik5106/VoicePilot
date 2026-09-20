@@ -43,7 +43,9 @@ class Controller:
             if cancel is not None and type(cancel) is not Event:
                 raise ExecutionError()
             self._active = cancel if cancel is not None else Event()
-            return self._drive(machine, plan, request, authority, Scenario(scenario), self._active)
+            from app.execution.cancellation import GLOBAL
+            with GLOBAL.track(self._active):
+                return self._drive(machine, plan, request, authority, Scenario(scenario), self._active)
         except Exception:
             allowed = TRANSITIONS.get(machine.state, frozenset())
             target = next((state for state in (State.BLOCKED, State.FAILED, State.UNVERIFIED)

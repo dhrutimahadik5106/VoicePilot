@@ -10,6 +10,7 @@ from app.speaker.models import SpeakerConfiguration
 from app.planning.models import Configuration as PlanningConfiguration
 from app.execution.models import Configuration as ExecutionConfiguration
 from app.launch.models import Configuration as LaunchConfiguration
+from app.operations.models import Configuration as OperationsConfiguration
 
 
 def validate_recordings_dir(value) -> Path:
@@ -62,6 +63,7 @@ class Settings(BaseSettings):
     planning: PlanningConfiguration = Field(default_factory=PlanningConfiguration)
     execution: ExecutionConfiguration = Field(default_factory=ExecutionConfiguration)
     launch: LaunchConfiguration = Field(default_factory=LaunchConfiguration)
+    operations: OperationsConfiguration = Field(default_factory=OperationsConfiguration)
     whisper_model: Literal["tiny", "tiny.en", "base", "base.en", "small", "small.en", "medium", "medium.en", "large", "large-v1", "large-v2", "large-v3", "large-v3-turbo", "turbo", "distil-small.en", "distil-medium.en", "distil-large-v2", "distil-large-v3", "distil-large-v3.5"] = "small"
     whisper_device: Literal["cpu", "cuda"] = "cpu"
     whisper_compute_type: Literal["int8", "float32", "float16", "int8_float16", "int8_float32"] = "int8"

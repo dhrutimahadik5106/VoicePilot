@@ -34,6 +34,11 @@ class CommandResolver:
         aliases, intents = load_registries() if directory is None else load_registries(directory)
         return cls(aliases, intents, config)
 
+    def resolve_basic(self, text):
+        """Explicit Phase 6B grammar; legacy media Stop semantics stay separate."""
+        from app.commands.basic import resolve_basic
+        return resolve_basic(text)
+
     def _entity_candidates(self, text, kind):
         found = []
         for entity in self.aliases.entities:

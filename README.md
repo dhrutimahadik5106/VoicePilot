@@ -528,3 +528,65 @@ venv Python. Launching requires the exact application ID and typed `LAUNCH <id>`
 No real launch was performed during development or automated validation.
 See [decision 0011](docs/decisions/0011-controlled-windows-application-launching.md)
 for exact venv commands, security boundaries, configuration and honest limitations.
+
+
+## Phase 6B: controlled basic operations
+
+Real controls and screenshot capture default off. Brightness read/support detection is
+available where the fixed Windows interface is supported; real brightness mutation is
+unsupported. Authenticated voice remains denied before capture and STT. See
+[decision 0012](docs/decisions/0012-controlled-windows-basic-operations.md) for boundaries,
+verification, privacy and cooperative cancellation limitations.
+
+Safe commands (PowerShell, existing venv):
+
+```powershell
+.\venv\Scripts\python.exe -m app.operations.cli status
+.\venv\Scripts\python.exe -m app.operations.cli volume-status
+.\venv\Scripts\python.exe -m app.operations.cli mute-status
+.\venv\Scripts\python.exe -m app.operations.cli brightness-status
+.\venv\Scripts\python.exe -m app.operations.cli authenticated-voice-status
+.\venv\Scripts\python.exe -m app.operations.cli plan "Set volume to 40 percent"
+.\venv\Scripts\python.exe -m app.operations.cli evaluate
+```
+
+The following commands are for the operator to run manually, not automated validation.
+They require an interactive terminal and exact confirmation shown immediately before
+execution. No `--confirmed` flag or piped approval is supported. For example, setting
+volume requires `APPROVE system.volume.set 40`.
+
+```powershell
+$env:VOICEPILOT_OPERATIONS__ENABLED="true"
+.\venv\Scripts\python.exe -m app.operations.cli manual-volume-test increase
+.\venv\Scripts\python.exe -m app.operations.cli manual-volume-test decrease
+.\venv\Scripts\python.exe -m app.operations.cli manual-volume-test set 40
+.\venv\Scripts\python.exe -m app.operations.cli manual-volume-test mute
+.\venv\Scripts\python.exe -m app.operations.cli manual-volume-test unmute
+.\venv\Scripts\python.exe -m app.operations.cli manual-brightness-test set 60
+$env:VOICEPILOT_OPERATIONS__SCREENSHOT_ENABLED="true"
+.\venv\Scripts\python.exe -m app.operations.cli manual-screenshot-test
+# Replace the UUID below with the exact safe artifact ID returned by capture:
+.\venv\Scripts\python.exe -m app.operations.cli delete-screenshot 00000000-0000-0000-0000-000000000000
+$env:VOICEPILOT_OPERATIONS__SCREENSHOT_ENABLED="false"
+$env:VOICEPILOT_OPERATIONS__ENABLED="false"
+```
+
+Brightness mutation returns unsupported. Screenshot confirmation is
+`APPROVE screen.screenshot.capture`, consenting to primary-display capture AND saving.
+Selected deletion requires `APPROVE screen.screenshot.delete <artifact UUID>`.
+Storage is fixed at the local Windows Known Folder LocalAppData under
+`VoicePilot/diagnostics/screenshots`; UUID-named artifacts remain until selected deletion.
+No screenshot content is inspected or uploaded. Deletion is not secure erasure.
+
+```powershell
+.\venv\Scripts\python.exe -m app.operations.cli session
+# Inside the same interactive session: volume-status, history, cancel, stop, exit
+.\venv\Scripts\python.exe -m app.operations.cli history
+.\venv\Scripts\python.exe -m app.operations.cli cancel
+.\venv\Scripts\python.exe -m app.operations.cli stop
+.\venv\Scripts\python.exe -m app.operations.cli authenticated-voice
+```
+
+History and cancellation are process-local; a fresh command has no prior session history
+and cannot stop another process. Stop latches within its process; it does not close apps.
+The final authenticated-voice command intentionally returns denial (exit 2).

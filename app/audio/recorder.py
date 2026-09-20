@@ -60,7 +60,12 @@ class SoundDeviceRecorder:
         done = Event()
         failure = None
         self._state = RecordingState.RECORDING
+        from app.execution.cancellation import GLOBAL, CallbackSignal
+        cancellation_context = GLOBAL.track(CallbackSignal(self.cancel))
+        cancellation_context.__enter__()
         try:
+            if self._cancel.is_set():
+                raise AudioError(ErrorCode.CANCELLED)
             backend = self._backend if self._backend is not None else load_backend()
             device = select_input_device(self.settings.audio_input_device, backend)
             if device.max_input_channels < self.format.channels:
@@ -159,4 +164,5 @@ class SoundDeviceRecorder:
             )
         finally:
             chunks.clear()
+            cancellation_context.__exit__(None, None, None)
             self._guard.release()

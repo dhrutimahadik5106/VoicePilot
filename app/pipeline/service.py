@@ -1,5 +1,6 @@
 """One-buffer diagnostics; authenticated checks precede all STT access."""
 from time import perf_counter
+from app.execution.cancellation import cooperative
 from uuid import uuid4
 from app.commands.resolver import CommandResolver
 from app.planning.planner import Planner
@@ -32,12 +33,14 @@ class DiagnosticService:
             plan=plan,simulation=simulation,details=details,resolver_reasons=resolution.reasons,
             resolver_evidence=tuple(sorted({c.match_type for c in resolution.candidates})),planning_seconds=max(0,self.clock()-start))
 
+    @cooperative
     def text(self,text,*,session_id=None,cancel=None):
         start=self.clock();base=dict(mode="unauthenticated-text",trace_id=uuid4(),session_id=session_id or uuid4())
         try: result=self._finish(text,text,base,cancel)
         except Exception: result=Trace(**base,status="blocked",reason="pipeline_failed")
         return result.model_copy(update={"total_seconds":max(0,self.clock()-start)})
 
+    @cooperative
     def audio(self,audio,*,authenticated=False,profile_id=None,session_id=None,cancel=None,capture_seconds=0):
         start=self.clock();base=dict(mode="authenticated" if authenticated else "unauthenticated-voice",
             trace_id=uuid4(),session_id=session_id or uuid4(),authentication="denied" if authenticated else "unauthenticated_diagnostic")

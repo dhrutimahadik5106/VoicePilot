@@ -281,3 +281,18 @@ wraps native APIs; `authorization` binds manual or protected authenticated evide
 inspection and deliberate manual consent. Settings.launch defaults production off.
 Existing diagnostics, fake execution and simulation remain non-executing. No new
 persistence or dependencies. See decision 0011 for the full boundary and limitations.
+
+
+## Phase 6B basic operations boundary
+
+`app.commands.basic` -> separate immutable `app.operations.models.Plan` -> closed
+registry/risk policy -> expiring single-use manual authorization -> operations
+controller -> fixed state/screenshot adapter -> independent observation/verification.
+The controller reuses Phase 5B Machine transitions; existing diagnostic/simulated plans
+remain rejected. Windows APIs are lazy and fixed, with real controls and screenshots
+default off. Native brightness mutation is unsupported. Session audit is a bounded
+in-memory event deque; screenshot storage is a separate consented local artifact store.
+`app.execution.cancellation` joins active capture/STT/diagnostic/execution/launch/basic
+work in one process, with cooperative cancellation and a latched emergency stop.
+Authenticated voice commands deny before capture/STT and cannot issue authorization.
+See [decision 0012](docs/decisions/0012-controlled-windows-basic-operations.md).

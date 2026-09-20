@@ -91,3 +91,7 @@ data/commands/private/
 *.vp-audio.wav
 .vp-diagnostic-*.tmp
 /diagnostics/
+
+# Phase 6B consented screenshot artifacts
+*.vp-screen.bmp
+.vp-screen-*.tmp

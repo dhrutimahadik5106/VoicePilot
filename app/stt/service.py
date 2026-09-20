@@ -8,6 +8,7 @@ from uuid import UUID, uuid4
 import numpy as np
 
 from app.audio.models import AudioFormat, RecordedAudio
+from app.execution.cancellation import cooperative
 from app.stt.audio_preprocessing import mono_pcm16
 from app.core.config import Settings
 from app.stt.output_safety import apply_output_safety
@@ -87,6 +88,7 @@ class TranscriptionService:
         self.settings = settings
         self.engine = engine
 
+    @cooperative
     def transcribe_audio(self, audio: RecordedAudio, *, language=None,
                          cancel: Event | None = None, audio_id: UUID | None = None,
                          execution_correlation_id: UUID | None = None) -> TranscriptionResult:
@@ -98,7 +100,7 @@ class TranscriptionService:
             return self._failure(request.audio_id, Code.CANCELLED, audio.duration, execution_correlation_id)
         if audio.duration > self.settings.stt_max_duration_seconds:
             return self._failure(request.audio_id, Code.AUDIO_TOO_LONG, audio.duration, execution_correlation_id)
-        result = self.engine.transcribe(request, cancel=cancel)
+        result = self.engine.transcribe(request, cancel=getattr(cancel, "caller", cancel))
         # Duration is measured from the supplied PCM, not trusted engine metadata.
         result = result.model_copy(update={"source_audio_duration": audio.duration})
         if result.safety_summary is not None:
@@ -112,6 +114,7 @@ class TranscriptionService:
             result = result.model_copy(update={"safety_summary": summary})
         return apply_output_safety(result, self.settings, cancel)
 
+    @cooperative
     def transcribe_file(self, path: Path, *, language=None, cancel: Event | None = None,
                         audio_id: UUID | None = None, execution_correlation_id: UUID | None = None):
         identifier = audio_id or uuid4()

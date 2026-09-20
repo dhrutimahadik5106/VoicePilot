@@ -85,6 +85,7 @@ class LaunchController:
         attempted = False
         observed = False
         adapter = None
+        cancellation_context = None
         machine = Machine(event_factory=lambda **data: LaunchAudit(**data, execution_permitted=permitted))
         try:
             started = self.clock()
@@ -102,6 +103,9 @@ class LaunchController:
             self._active = cancel if type(cancel) is Event else Event()
             if cancel is not None and type(cancel) is not Event:
                 raise LaunchError(Status.CANCELLED)
+            from app.execution.cancellation import GLOBAL
+            cancellation_context = GLOBAL.track(self._active)
+            cancellation_context.__enter__()
             machine.plan_id, machine.step_id, machine.capability = plan.plan_id, plan.step_id, "application.launch"
             machine.move(State.VALIDATING, Status.AVAILABLE)
             if self.stop.is_set() or self._active.is_set():
@@ -200,5 +204,7 @@ class LaunchController:
                         cleanup()
                 except Exception:
                     pass  # Handle cleanup cannot create a success or expose native errors.
+            if cancellation_context is not None:
+                cancellation_context.__exit__(None, None, None)
             self._active = None
             self._lock.release()
