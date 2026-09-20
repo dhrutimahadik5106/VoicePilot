@@ -275,3 +275,66 @@ Normal pilot output includes independently verified volume/mute/brightness readi
 and closed application IDs when applicable. Private command text, plan authorization
 handles and biometric evidence remain excluded from normal output. Ctrl+C discards
 outstanding evidence and returns cancelled.
+
+
+## Phrase-verification correction
+
+Code-level root cause reproduced with synthetic segmented STT: `raw_transcript`
+concatenates segment text verbatim, whereas `normalized_transcript` trims and joins
+segment boundaries with spaces. Owner verification previously compared the raw view.
+Segments ending in `fresh` and beginning with `apples` therefore produced a false
+`phrase_mismatch`; the normalized diagnostic view correctly retained `fresh apples`.
+Both the flowers and apples regressions failed before the correction and pass after it.
+Raw STT remains unchanged. Verification now consumes the same normalized STT view used
+for diagnostic display, with no refinement, inferred spaces or semantic matching.
+A fused word within a single segment still fails.
+
+`owner-phrase-normalization-v1` applies the same function to expected and recognized
+text: Unicode NFC, case folding followed by NFC, leading/trailing and repeated whitespace
+normalization, and removal of terminal ASCII `. , ! ? ; :` punctuation only. Non-whitespace
+control/format characters are rejected; interior punctuation is not deleted. Exact full
+phrase equality remains required. Missing, extra, reordered, partial, homophone and
+command text fail. Inputs remain bounded to 300 characters. No transcript diagnostic,
+new display option, persistence or audit field was added.
+
+The complete checked-in corpus already contains `fresh apples` with the correct space;
+no malformed entry was found. Pure validation at import and challenge construction
+checks syntax, spacing, uniqueness and the pinned public corpus digest/order, rejecting
+`freshapples` or other unreviewed changes. This digest is a regression identifier, not
+authentication. The reported malformed on-screen prompt cannot be reproduced from the
+current corpus; its cause remains unconfirmed without a separately consented observation.
+
+Read-only code comparison found identical owner/diagnostic Faster-Whisper settings when
+started from the same Settings: both use TranscriptionService, local-only model access,
+and the existing model, contextual hints, language, beam, temperature and VAD settings.
+A fake constructor parity test verifies this. The engine completes segment iteration and
+output-safety processing before phrase verification. Owner capture pins mono 16 kHz,
+disables silence-stop, and uses speaker.capture_duration (default 8s, bounded by 30s);
+diagnostics use audio settings and --seconds (default 8s). These capture differences can
+still affect real recognition or truncate a long utterance; they were not changed.
+A separate successful microphone capture cannot prove what the earlier failed capture
+contained. The supplied single-string flowers transcript already passes the old case/
+whitespace/ASCII-punctuation matcher. Segment joining is a confirmed code defect, not
+proof that every reported real failure had that cause.
+
+Same-audio ID/digest, session, one-use challenge, expiry (including after STT), speaker,
+quality, configuration and enrollment provenance checks are unchanged. No protected
+record, profile, audio or model was opened. Existing owner-phrases-v1, schema and policy
+binding inputs remain unchanged: there is no migration, reset or invalidation. A synthetic
+seven-sample schema round-trip/resume test proves that mismatch leaves the entire record
+unchanged and a subsequent matching eighth sample preserves all prior evidence IDs.
+Use the existing CLI `resume` to inspect progress and `owner` to collect one further
+sample with consent. Do not run `begin`, revoke, delete or change policy settings to apply
+this maintenance fix. Real recognition, timing and the reported display remain user-only
+manual validation; no claim is made about unseen private recordings.
+
+
+Correction validation (existing venv, `python -B -m pytest`):
+
+- `tests/owner -q`: 169 passed, including 36 new regressions.
+- `tests/speaker tests/stt tests/pipeline tests/commands tests/launch tests/operations -q`: 1133 passed.
+- `-q -k "privacy or leakage or sensitive or guard or side_effect or import or config"`: 188 passed, 1552 deselected.
+- Complete `-q`: 1740 passed.
+- Guarded configuration/corpus/import smoke, `python -B -m pip check` and `git diff --check` passed.
+- Dependencies unchanged. All tests used generated inputs/fakes; no real biometric,
+  model, microphone, calibration record or Windows action was accessed.

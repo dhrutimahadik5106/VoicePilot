@@ -135,7 +135,9 @@ class Calibration:
             check_speech_duration(transcript, self.cfg)
             phrase_ok = True
             try:
-                self.challenges.verify(expected, transcript.raw_transcript)
+                # Raw concatenation can fuse adjacent segments. Use the shared STT
+                # boundary-whitespace view, never refinement or guessed word splits.
+                self.challenges.verify(expected, transcript.normalized_transcript)
             except OwnerError:
                 phrase_ok = False
             if self.challenges.clock() >= expires:

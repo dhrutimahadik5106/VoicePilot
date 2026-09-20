@@ -605,3 +605,12 @@ for the audited existing speaker stack, exact consent/capture commands, required
 20 consenting non-owner / 4 holdout / 3 wrong-phrase trials, protection, revocation and
 replay limitations. Start with `python -m app.owner.cli inspect-config` and `privacy`,
 using the existing venv. Real manual calibration is explicitly user-operated.
+
+
+Owner challenge verification uses the shared STT segment-boundary-normalized view,
+then exact versioned Unicode/case/whitespace/terminal-punctuation normalization.
+It never guesses missing words or splits fused words within a segment. The public phrase
+corpus is validated, including `fresh apples`. Existing calibration summaries and accepted
+samples remain compatible; use `app.owner.cli resume --profile <existing-profile-UUID>`
+to inspect progress, then the existing consented `owner` command to continue. Do not reset
+calibration for this correction. See decision 0013 for the reproduced defect and limits.

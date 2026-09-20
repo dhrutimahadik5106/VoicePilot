@@ -1,6 +1,8 @@
 """Single-use random public phrases: replay friction, never strong liveness."""
 import secrets
 import re
+import unicodedata
+from hashlib import sha256
 from time import monotonic
 from uuid import UUID
 from app.owner.models import Challenge, OwnerError
@@ -21,14 +23,47 @@ PHRASES = (
 )
 
 
-def words(text):
-    if type(text) is not str or len(text) > 300:
+NORMALIZATION_VERSION = "owner-phrase-normalization-v1"
+# Pin exact public corpus bytes/order for owner-phrases-v1. This is a regression
+# identifier, not authentication; no protected calibration binding is changed.
+CORPUS_SHA256 = "0b48cf8679754cd3e9506744e33316365737634d88fb5b7dba9e7455f98e7f84"
+
+
+def normalize_phrase(text):
+    """Canonical comparison only; never rewrite raw STT or infer missing words."""
+    if type(text) is not str or not 0 < len(text) <= 300:
         raise OwnerError("phrase_mismatch")
-    return re.sub(r"[.,!?]", "", text.casefold()).split()
+    text = unicodedata.normalize("NFC", text)
+    if any(unicodedata.category(char).startswith("C") and char not in "\t\r\n"
+           for char in text):
+        raise OwnerError("phrase_mismatch")
+    text = unicodedata.normalize("NFC", text.casefold())
+    text = " ".join(text.split()).rstrip(".,!?;:").rstrip()
+    if not text:
+        raise OwnerError("phrase_mismatch")
+    return text
+
+
+def validate_corpus(phrases=PHRASES):
+    """Pure import-safe validation; reject whitespace, fused words and corpus drift."""
+    if type(phrases) is not tuple or len(phrases) != 12:
+        raise OwnerError("phrase_mismatch")
+    for phrase in phrases:
+        if (type(phrase) is not str or len(phrase) > 120
+                or re.fullmatch(r"[A-Z][a-z]*(?: [a-z]+){7,11}", phrase) is None):
+            raise OwnerError("phrase_mismatch")
+    if len({normalize_phrase(phrase) for phrase in phrases}) != len(phrases):
+        raise OwnerError("phrase_mismatch")
+    if sha256("\n".join(phrases).encode("ascii")).hexdigest() != CORPUS_SHA256:
+        raise OwnerError("phrase_mismatch")
+
+
+validate_corpus()
 
 
 class Challenges:
     def __init__(self, cfg, *, clock=monotonic, choose=secrets.choice):
+        validate_corpus(PHRASES)
         self.cfg, self.clock, self.choose = cfg, clock, choose
         self.pending = {}
 
@@ -52,5 +87,5 @@ class Challenges:
         return row[0].phrase
 
     def verify(self, expected, transcript):
-        if words(expected) != words(transcript):
+        if expected not in PHRASES or normalize_phrase(expected) != normalize_phrase(transcript):
             raise OwnerError("phrase_mismatch")
