@@ -3,8 +3,9 @@ import argparse
 import json
 import sys
 from uuid import UUID
+from app.core import timing
 from app.core.config import Settings
-from app.owner.models import OwnerError
+from app.owner.models import OwnerError, TrialConsent
 
 PRIVACY = ("Owner calibration collects fresh prompted microphone samples and temporary speaker embeddings. "
     "No raw audio or transcripts are saved. Only encrypted calibration aggregates, consent IDs and "
@@ -21,15 +22,18 @@ class Parser(argparse.ArgumentParser):
 
 
 def main(argv=None, *, settings=None, factory=None, read=input, write=print, interactive=None):
+    timing_report = timing_token = None
     try:
         parser = Parser(description="Owner calibration and separately enabled REAL authenticated voice pilot")
         sub = parser.add_subparsers(dest="command", required=True)
-        for name in ("privacy", "inspect-config", "evaluate-synthetic"):
+        for name in ("privacy", "inspect-config", "evaluate-synthetic", "evaluate-timings"):
             sub.add_parser(name)
         for name in ("status", "begin", "resume", "owner", "nonowner", "holdout", "replay", "freeze",
                      "evaluate", "approve", "results", "suspend", "revoke", "delete", "voice-pilot"):
             child = sub.add_parser(name)
             child.add_argument("--profile", type=UUID, required=True)
+            if name in {"owner", "nonowner", "holdout", "replay", "voice-pilot"}:
+                child.add_argument("--timings", action="store_true", help="Opt-in numerical timings only; never saved")
             if name in {"owner", "nonowner", "holdout", "replay"}:
                 child.add_argument("--environment", choices=("quiet", "different_environment"), required=True)
             if name == "nonowner":
@@ -46,9 +50,16 @@ def main(argv=None, *, settings=None, factory=None, read=input, write=print, int
             from app.owner.evaluation import evaluate
             write(json.dumps(evaluate()))
             return 0
+        if args.command == "evaluate-timings":
+            from app.owner.timing_evaluation import evaluate
+            write(json.dumps(evaluate()))
+            return 0
         tty = interactive or (lambda: sys.stdin.isatty() and sys.stdout.isatty())
         if not tty():
             raise OwnerError("consent_required")
+        if getattr(args, "timings", False):
+            timing_report = timing.Report()
+            timing_token = timing.activate(timing_report)
         if args.command == "voice-pilot":
             if not cfg.owner.pilot_enabled or not cfg.speaker_verification_enabled:
                 raise OwnerError("access_denied")
@@ -78,8 +89,13 @@ def main(argv=None, *, settings=None, factory=None, read=input, write=print, int
                 raise OwnerError("consent_required")
             if args.command == "replay":
                 write("Wrong-phrase challenge test: speak the displayed alternate phrase; expected challenge rejection. Not a strong replay/liveness test.")
-            result = service.collect(args.profile, args.command, args.environment, consent=True,
-                                     participant=getattr(args, "participant", None))
+            timing.begin("total_after_consent")
+            timing.begin("consent_to_phrase_display")
+            participant = getattr(args, "participant", None)
+            trial_consent = TrialConsent(profile_id=args.profile, group=args.command,
+                                         environment=args.environment, participant=participant)
+            result = service.collect(args.profile, args.command, args.environment,
+                                     consent=trial_consent, participant=participant)
         elif args.command == "freeze":
             result = service.freeze(args.profile)
         elif args.command == "evaluate":
@@ -89,7 +105,10 @@ def main(argv=None, *, settings=None, factory=None, read=input, write=print, int
         elif args.command in {"suspend", "revoke", "delete"}:
             result = service.change(args.profile, args.command, consent=True)
         else:
+            timing.begin("total_after_consent")
+            timing.begin("consent_to_phrase_display")
             result = runtime.pilot(service).run(args.profile).model_dump(mode="json")
+        timing.end("total_after_consent")
         write(json.dumps(result))
         return 2 if result.get("status") in {"blocked", "cancelled"} else 0
     except (KeyboardInterrupt, EOFError):
@@ -99,6 +118,12 @@ def main(argv=None, *, settings=None, factory=None, read=input, write=print, int
         reason = error.code if type(error) is OwnerError else "access_denied"
         write(json.dumps({"status": "blocked", "reason": reason}))
         return 2
+
+    finally:
+        if timing_token is not None:
+            timing.end("total_after_consent")
+            timing.deactivate(timing_token)
+            write(json.dumps(timing_report.document()))
 
 
 if __name__ == "__main__":

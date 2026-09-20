@@ -2,6 +2,7 @@
 from time import monotonic
 from threading import Event, Lock
 from uuid import uuid4, UUID
+from app.core import timing
 from app.owner.models import Outcome, Evidence, PilotResult, OwnerError
 from app.owner.calibration import decision
 from app.owner.quality import check_audio, check_speech_duration
@@ -135,14 +136,16 @@ class Pilot:
         guard()
         if waveform_hash(audio) != digest:
             raise OwnerError("binding_mismatch")
-        stt = self.calibration.stt.transcribe_audio(audio, audio_id=audio_id, cancel=self.cancel)
+        with timing.span("command_stt"):
+            stt = self.calibration.stt.transcribe_audio(audio, audio_id=audio_id, cancel=self.cancel)
         if waveform_hash(audio) != digest:
             raise OwnerError("binding_mismatch")
         if stt.status != "succeeded" or stt.audio_id != audio_id:
             raise OwnerError("stt_rejected")
         check_speech_duration(stt, self.cfg)
         guard()
-        plan = resolve(stt.raw_transcript)
+        with timing.span("planning"):
+            plan = resolve(stt.raw_transcript)
         details = {"raw_command": stt.raw_transcript, "normalized_command": stt.normalized_transcript,
                    "canonical_command": plan if type(plan) is str else plan.capability.value,
                    "entities": {"application": plan} if type(plan) is str else {"percentage": plan.percentage}}

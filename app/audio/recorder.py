@@ -6,6 +6,7 @@ from time import monotonic
 
 import numpy as np
 
+from app.core import timing
 from app.core.config import Settings
 from app.audio.contracts import AudioError, Control
 from app.audio.devices import error_code, load_backend, select_input_device
@@ -39,7 +40,7 @@ class SoundDeviceRecorder:
         self._stop.set()
 
     def record(self, duration_seconds: float | None = None,
-               control: Control | None = None) -> RecordingResult:
+               control: Control | None = None, *, guard=None, capture_stage="capture") -> RecordingResult:
         duration = self.settings.audio_max_duration_seconds if duration_seconds is None else duration_seconds
         if (isinstance(duration, bool) or not isinstance(duration, (int, float))
                 or not math.isfinite(duration)
@@ -66,14 +67,15 @@ class SoundDeviceRecorder:
         try:
             if self._cancel.is_set():
                 raise AudioError(ErrorCode.CANCELLED)
-            backend = self._backend if self._backend is not None else load_backend()
-            device = select_input_device(self.settings.audio_input_device, backend)
-            if device.max_input_channels < self.format.channels:
-                raise AudioError(ErrorCode.DEVICE_UNAVAILABLE)
-            backend.check_input_settings(device=device.index,
-                                         samplerate=self.format.sample_rate,
-                                         channels=self.format.channels,
-                                         dtype=self.format.dtype)
+            with timing.span("recorder_setup"):
+                backend = self._backend if self._backend is not None else load_backend()
+                device = select_input_device(self.settings.audio_input_device, backend)
+                if device.max_input_channels < self.format.channels:
+                    raise AudioError(ErrorCode.DEVICE_UNAVAILABLE)
+                backend.check_input_settings(device=device.index,
+                                             samplerate=self.format.sample_rate,
+                                             channels=self.format.channels,
+                                             dtype=self.format.dtype)
 
             def callback(indata, frames, time_info, status):
                 nonlocal frames_captured, failure, silent_frames, heard_speech
@@ -107,24 +109,30 @@ class SoundDeviceRecorder:
                 if done.is_set():
                     raise backend.CallbackStop
 
-            stream = backend.RawInputStream(
-                samplerate=self.format.sample_rate, channels=self.format.channels,
-                dtype=self.format.dtype, blocksize=self.settings.audio_block_size,
-                device=device.index, callback=callback, finished_callback=done.set,
-            )
+            if guard is not None:
+                guard()  # Device discovery may have consumed the caller deadline.
+            with timing.span("recorder_setup"):
+                stream = backend.RawInputStream(
+                    samplerate=self.format.sample_rate, channels=self.format.channels,
+                    dtype=self.format.dtype, blocksize=self.settings.audio_block_size,
+                    device=device.index, callback=callback, finished_callback=done.set,
+                )
             deadline = self._clock() + duration
-            stream.start()
-            while not done.is_set() and not self._stop.is_set():
-                if control is not None:
-                    action = control()
-                    if action == "cancel":
-                        self.cancel()
-                    elif action == "stop":
+            if guard is not None:
+                guard()  # Never start a stream after slow native construction.
+            with timing.span(capture_stage):
+                stream.start()
+                while not done.is_set() and not self._stop.is_set():
+                    if control is not None:
+                        action = control()
+                        if action == "cancel":
+                            self.cancel()
+                        elif action == "stop":
+                            self.stop()
+                    if self._clock() >= deadline:
                         self.stop()
-                if self._clock() >= deadline:
-                    self.stop()
-                if not self._stop.is_set():
-                    done.wait(0.02)
+                    if not self._stop.is_set():
+                        done.wait(0.02)
         except KeyboardInterrupt:
             self.cancel()
         except Exception as error:

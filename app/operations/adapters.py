@@ -1,4 +1,5 @@
 """Closed adapter contract implementations; observations remain controller-owned."""
+from app.core.timing import timed
 from app.operations.models import Plan, Capability as C, Code, OperationError, validate_plan, Volume, Brightness
 from app.operations.registry import REGISTRY
 
@@ -16,6 +17,7 @@ class StateAdapter:
     def precondition(self, step):
         return validate_plan(step).capability == self.capability
 
+    @timed("execution")
     def execute(self, key, step, cancel):
         if not self.precondition(step) or cancel.is_set():
             raise OperationError(Code.CANCELLED)
@@ -63,6 +65,7 @@ class ScreenshotAdapter:
     def precondition(self, step):
         return validate_plan(step).capability == self.capability
 
+    @timed("execution")
     def execute(self, key, step, cancel):
         if not self.precondition(step) or cancel.is_set():
             raise OperationError(Code.CANCELLED)

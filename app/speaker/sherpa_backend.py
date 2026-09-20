@@ -1,5 +1,6 @@
 ﻿"""Lazy CPU WeSpeaker adapter. No capture, persistence or fallback embeddings."""
 import numpy as np
+from app.core import timing
 from app.speaker.artifacts import IDENTITY, fingerprint
 from app.speaker.contracts import SpeakerError
 from app.speaker.embedding import normalized
@@ -35,9 +36,11 @@ class SherpaEmbeddingEngine:
     def ready(self):
         if self.configuration.embedding_dimension != self.identity.dimension:
             raise SpeakerError("model_invalid")
-        self.inspector(self.path)
+        with timing.span("speaker_integrity"):
+            self.inspector(self.path)
         if self._extractor is None:
-            self._extractor = self.factory(self.path)
+            with timing.span("speaker_model_load", "cold"):
+                self._extractor = self.factory(self.path)
         if self._extractor.dim != self.identity.dimension:
             self._extractor = None
             raise SpeakerError("model_invalid")
@@ -52,6 +55,7 @@ class SherpaEmbeddingEngine:
             if samples.dtype != np.float32 or samples.ndim != 1 or not samples.flags.c_contiguous or not np.isfinite(samples).all():
                 raise SpeakerError("invalid_audio")
             check_cancel(cancel)
+            temperature = "cold" if self._extractor is None else "warm"
             self.ready()
             stream = self._extractor.create_stream()
             stream.accept_waveform(sample_rate=16000, waveform=samples)
@@ -59,7 +63,8 @@ class SherpaEmbeddingEngine:
             if not self._extractor.is_ready(stream):
                 raise SpeakerError("invalid_audio")
             check_cancel(cancel)
-            vector = self._extractor.compute(stream)
+            with timing.span("speaker_inference", temperature):
+                vector = self._extractor.compute(stream)
             check_cancel(cancel)
             return normalized(vector, self.identity.dimension)
         except SpeakerError:

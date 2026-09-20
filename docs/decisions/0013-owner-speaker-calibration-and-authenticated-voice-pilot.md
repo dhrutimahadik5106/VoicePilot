@@ -338,3 +338,150 @@ Correction validation (existing venv, `python -B -m pytest`):
 - Guarded configuration/corpus/import smoke, `python -B -m pip check` and `git diff --check` passed.
 - Dependencies unchanged. All tests used generated inputs/fakes; no real biometric,
   model, microphone, calibration record or Windows action was accessed.
+
+
+## Consent and challenge-expiry lifecycle correction
+
+Audit of commit 69eaaa5 found that the CLI already printed privacy information and
+collected operator consent plus personal non-owner consent before calling `collect`.
+Those waits did not spend the challenge lifetime. The actual reported failure cannot
+be attributed to consent timing from that code, and no private record or recording was
+opened to investigate it. A cold model/STT pass or a long post-display wait can still
+expire the unchanged deadline; there is no claim that these unobserved causes were fixed.
+
+Two code-level timing gaps were corrected: challenge creation started its clock before
+phrase display, and the runtime checked expiry before recorder setup/output but not
+immediately before `record`. The shared lifecycle now validates the selected trial after
+consent, selects a fresh challenge, synchronously displays it, and only then registers its
+45-second deadline. Display failure/cancellation leaves no pending challenge. The runtime
+checks again after Enter and immediately after inert recorder construction, before device
+access. Capture and STT remain within the same short deadline. No extension, renewal,
+retry grant, pre-consent challenge or authentication evidence was introduced.
+
+Owner, non-owner, holdout, wrong-phrase replay tests and voice-pilot authentication use
+this shared presentation-before-deadline path. Replay still presents the alternate phrase
+while binding to the original expected challenge. Commands remain separate from challenge
+capture. Cancellation is checked before challenge creation and around presentation, and
+failed attempts remove pending state without updating calibration.
+
+The interactive CLI creates an immutable, non-serialized TrialConsent after final consent,
+binding profile UUID, trial group, environment and participant pseudonym. `collect` rejects
+substituted inputs before issuing a challenge. It is not an authentication/execution grant
+or a proof of participant identity. Existing trusted in-process `consent=True` service
+calls remain supported; Python dependency injection is not a security sandbox. No consent
+object, extra pseudonym data, transcript, audio or non-owner template is persisted.
+
+Settings, expiry, profile format, owner-phrases-v1, calibration policy and configuration
+binding inputs are unchanged. There is no reset/migration or invalidation of accepted
+samples. Synthetic tests preserve an eight-owner/zero-non-owner record unchanged
+through cancellation and expiry. Retry the same `nonowner` command with the same stable
+participant UUID and selected environment; it requests both consents and a fresh challenge.
+Do not rerun `begin`, reset calibration or change expiry to apply this correction.
+
+
+## Timing and efficiency audit (same maintenance fix)
+
+Model reuse is already session-scoped. Runtime constructs one lazy Sherpa engine and
+one lazy TranscriptionService/FasterWhisperEngine; challenge and command reuse both
+models, but compute a new embedding and transcription for each separate capture.
+Import/configuration never loads a model. Independent CLI invocations start new processes
+and can pay cold load costs for every calibration sample. The speaker graph is still
+fingerprinted at verification; that integrity check is not replaced by a stale cache.
+No microphone prewarming, eager model loading, dependency change or download was added.
+
+Protected state deliberately remains freshly read at admission and side-effect guards.
+Fake-protector measurements for one accepted owner sample: three profile loads, five
+summary decryptions and one atomic summary encryption/replacement. A phrase mismatch
+performs one profile load and one summary decryption, with zero writes. The additional
+reads validate current provenance, detect concurrent revisions around atomic replacement,
+and obtain the current public status. They are not model reloads. No decrypted-record
+cache was added. Repeating evaluate in unchanged evaluating state or revoke in already
+revoked state now performs no rewrite; genuine state/evidence changes still persist.
+These small no-op optimizations neither approve evidence nor bypass current-state checks.
+
+Volume mutation retains one baseline read, at most one write and one independent
+read-back; there is no mutation retry or continuous polling. Native COM/endpoint handles
+are initialized/released per native call (normally three endpoint acquisitions for a
+changed volume), rather than cached across observations. This preserves endpoint identity
+and independent observation but remains a possible latency cost. Launch discovery remains
+fixed-candidate only, with held executable validation and unchanged signature/publisher/
+path checks. Launch observation is bounded by deadline and 301 loop iterations; never a
+second launch retry. Existing bounded history and cancellation/emergency-stop checks remain.
+
+Capture now also passes its guard through SoundDeviceRecorder, immediately before native
+stream construction after device discovery, and again before stream start. Slow discovery
+cannot open a stream after expiry; a constructor that returns after expiry is closed
+without starting. Synchronous driver calls cannot be preempted mid-call. There is no added
+DPAPI polling during recording. Capture, speaker/STT inference and observation remain
+bounded by existing policy checks; no deadline was extended. Stream abort/close, temporary
+chunk release, STT generator closure, pending-challenge removal, permit/lock/hub cleanup
+and atomic-temp cleanup are covered with fakes. Weak-reference tests verify temporary
+prepared sample arrays and speaker streams are not retained after normal processing.
+This is not a guarantee of secure memory zeroization or untested native-driver behavior.
+
+Optional interactive `--timings` on owner/nonowner/holdout/replay/voice-pilot emits a
+separate JSON numerical report to the terminal only. No timing file or diagnostic trace
+is written. Labels are closed; values contain only stage, finite seconds, cold/warm/
+not_applicable and completed (the timed call returned normally, NOT authentication
+success). At most 128 samples are retained; dropped is bounded and total_after_consent
+is preserved if polling fills the report. The context is cleared on terminal paths.
+Timing uses a separate diagnostic clock and never controls permission or expiry.
+It adds no setting to protected policy bindings. Default output remains unchanged.
+
+Stages include consent completion to phrase display, display to Enter, command Enter
+wait, recorder setup, actual capture, command capture, speaker integrity checks/model load/inference,
+phrase STT, command STT, STT load/inference, deterministic planning, adapter execution,
+independent observation, comparisons, controller total and total after consent until
+result. Recorder setup may have multiple samples (Python setup, device discovery and native stream construction).
+Timings are nested: do not sum totals and their child stages. Adapter execution includes
+required guards/revalidation; comparisons include pre-effect checks. Unreached stages are
+absent, not reported as successful zero-duration operations. Setup, inference and protected
+state checks can still consume the post-display deadline. Cold loading can still cause
+challenge_expired. No claim is made about the cause of the unseen real failed attempt.
+
+Safe development command (no hardware/models/private records):
+
+```powershell
+.\venv\Scripts\python.exe -B -m app.owner.cli evaluate-timings
+```
+
+The deterministic injected schedule reports 1/1 verified fake session, 2/2 distinct
+captures, 2/2 speaker computations, 2/2 STT calls, one speaker initialization and one STT
+initialization per session, and two volume reads (baseline plus independent read-back).
+Scheduled values in seconds: display preparation .125 (1 sample), Enter waits .25 each
+(2), recorder setup .05 each (2), captures 1 each (2), cold speaker load .5 (1), speaker
+inference .075 each (2: one cold, one warm), cold STT load 1 (1) and warm load 0 (1),
+STT inference .2 each (2), execution .01 (1), observations .025 each (2), total challenge
+3.2 (1), command STT .2 (1), controller total .06 (1), total after consent 4.835 (1).
+Planning and comparisons advance this fake clock by zero; that is not a real cost estimate.
+These are injected durations for instrumentation/reuse verification, not measured machine,
+model or population performance. Real measurements must report machine/session context.
+
+Manual timing commands are USER-ONLY, require existing enablement and every consent:
+
+```powershell
+# Reuse the existing profile, participant pseudonym and environment from the failed trial.
+.\venv\Scripts\python.exe -B -m app.owner.cli nonowner --profile $profile --participant $participant --environment $environment --timings
+# Only after complete calibration and separately enabling the pilot/desired adapters:
+.\venv\Scripts\python.exe -B -m app.owner.cli voice-pilot --profile $profile --timings
+```
+
+The first exposes calibration preparation/capture/challenge costs; the second separates
+challenge, command recognition and total time through verified result. A new CLI process
+starts cold; the second capture in a successful pilot reuses warm models. Do not change
+expiry, reduce evidence, bypass consent, cache authorization or skip independent observation
+to obtain a better number. No real manual calibration, profile/model access, microphone
+or Windows operation was performed for this audit. Phase 6C remains unstarted.
+
+
+Final maintenance validation (existing venv, all fake-only):
+
+- `python -B -m pytest tests/owner -q`: 215 passed.
+- `python -B -m pytest tests/speaker tests/stt tests/pipeline tests/commands tests/launch tests/operations -q`: 1133 passed.
+- Final affected `python -B -m pytest tests/owner tests/audio tests/speaker/test_sherpa_backend.py tests/launch tests/operations -q`: 686 passed.
+- Privacy/guard/import/config selection: 193 passed, 1593 deselected.
+- Final complete `python -B -m pytest -q`: 1786 passed.
+- `python -B -m pip check`: no broken requirements.
+- Guarded AST/import/default-config smoke: 14 modules passed; 45-second expiry and disabled defaults retained.
+- Fake timing CLI, private-artifact ignore checks and `git diff --check` passed.
+- No dependencies, real profile/calibration record, microphone, models or native Windows actions were touched.

@@ -67,10 +67,14 @@ class Challenges:
         self.cfg, self.clock, self.choose = cfg, clock, choose
         self.pending = {}
 
-    def create(self, session):
+    def create(self, session, *, present=None):
         if type(session) is not UUID or len(self.pending) >= 128:
             raise OwnerError()
         challenge = Challenge(phrase=self.choose(PHRASES))
+        # Presentation is synchronous. Consent precedes this call; the deadline
+        # starts only after the selected phrase has been displayed successfully.
+        if present is not None:
+            present(challenge.phrase)
         self.pending[challenge.handle] = (challenge, session, self.clock() + self.cfg.challenge_expiry)
         return challenge
 

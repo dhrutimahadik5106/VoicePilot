@@ -614,3 +614,20 @@ corpus is validated, including `fresh apples`. Existing calibration summaries an
 samples remain compatible; use `app.owner.cli resume --profile <existing-profile-UUID>`
 to inspect progress, then the existing consented `owner` command to continue. Do not reset
 calibration for this correction. See decision 0013 for the reproduced defect and limits.
+
+
+Calibration consent is completed before challenge issuance. The unchanged 45-second
+challenge window starts after phrase display; waiting for Enter, capture and STT remain
+bounded by it. Expiry is rechecked immediately before recording. An expired non-owner
+attempt preserves accepted owner samples: retry `app.owner.cli nonowner` with the same
+profile, participant pseudonym and environment, completing both consents again. Do not
+restart calibration or extend expiry. See decision 0013 for timing limits and fake-clock
+regressions; cold model/STT latency can still cause expiry.
+
+
+For a safe fake-only timing/reuse report, run
+`python -B -m app.owner.cli evaluate-timings` with the existing venv. For later deliberate
+manual calibration or voice-pilot testing, append `--timings` to the existing command.
+It prints numerical durations only, saves nothing and does not bypass consent or expiry.
+Challenge/command share models within one process; separate CLI invocations start cold.
+See decision 0013 for timing interpretation and the unchanged security boundaries.

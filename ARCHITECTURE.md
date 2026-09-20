@@ -309,3 +309,20 @@ exact-plan permit for the existing launch/operations controllers. Each native gu
 rechecks current profile/calibration/model binding and expiry. Ordinary diagnostics and
 simulation cannot mint these permits. `runtime` constructs local dependencies lazily;
 `cli` requires explicit interactive consent and Enter per capture. See decision 0013.
+
+
+Phase 6B.1 maintenance: challenge deadlines start after synchronous phrase presentation,
+after all CLI consent. Selected calibration inputs use a separate ephemeral TrialConsent;
+it never authorizes execution or enters protected storage. Recorder guards run after device
+discovery before stream creation/start. Calibration formats, configuration binding and
+45-second challenge expiry are unchanged.
+
+`app.core.timing` is an opt-in context-local, bounded numerical observer, independent of
+security clocks and authorization. Owner `--timings` reports stage durations only; cached
+speaker/STT models are reused within a Runtime while each capture is processed separately.
+No transcripts, audio, scores, provenance, paths or identifiers enter timing reports.
+Controllers retain their independent observations and bounded polling; timing decorators
+cannot supply authorization. Protected profiles/calibration are not cached across guards.
+Only unchanged evaluate/revoke transitions skip redundant writes. The fake timing schedule
+in `app.owner.timing_evaluation` is a development check, not a hardware benchmark. See
+ADR 0013 for exact counters, nested timing semantics and manual-only measurement commands.

@@ -3,6 +3,7 @@ from collections import deque
 from math import isfinite
 from threading import Event as Signal, Lock
 from time import monotonic
+from app.core.timing import timed, span
 from app.execution.cancellation import GLOBAL
 from app.execution.state import Machine, TRANSITIONS
 from app.execution.models import State
@@ -13,6 +14,7 @@ from app.operations.authorization import ManualAuthority
 from app.operations.adapters import StateAdapter, ScreenshotAdapter
 
 
+@timed("verification")
 def volume_matches(before, after, percent, muted, tolerance):
     return (type(after) is Volume and after.endpoint == before.endpoint
             and abs(after.percent - percent) <= tolerance and after.muted is muted)
@@ -47,6 +49,7 @@ class Controller:
                 execution_permitted=result.execution_permitted))
         return result
 
+    @timed("controller_total")
     def run(self, plan, permit=None, authority=None, *, cancel=None):
         from app.owner.authorization import OperationAuthority
         started = self.clock()
@@ -100,7 +103,8 @@ class Controller:
             def observe(fn):
                 guard()
                 begin = self.clock()
-                value = fn()
+                with span("observation"):
+                    value = fn()
                 guard()
                 if self.clock() - begin >= self.configuration.observation_timeout:
                     raise OperationError(Code.TIMEOUT)
@@ -180,10 +184,11 @@ class Controller:
                     machine.move(State.OBSERVING, Code.READ)
                     after = observe(self.backend.read_brightness)
                     machine.move(State.VERIFYING, Code.READ)
-                    if (type(after) is not Brightness or not after.supported
-                            or after.target != before.target or after.percent != target):
-                        recovery = "unknown"
-                        raise OperationError(Code.UNVERIFIED)
+                    with span("verification"):
+                        if (type(after) is not Brightness or not after.supported
+                                or after.target != before.target or after.percent != target):
+                            recovery = "unknown"
+                            raise OperationError(Code.UNVERIFIED)
                     result_fields["brightness"] = after
                     code = Code.READ if not mutation else Code.ALREADY if target == before.percent else Code.CHANGED
                 elif cap in {C.SCREENSHOT, C.SCREENSHOT_DELETE}:

@@ -4,7 +4,8 @@ from datetime import datetime, timezone
 from hashlib import sha256
 import json
 from uuid import UUID, uuid4
-from app.owner.models import Record, State, OwnerError
+from app.core import timing
+from app.owner.models import Record, State, OwnerError, TrialConsent
 from app.owner.challenge import Challenges, PHRASES
 from app.owner.quality import check_audio, check_speech_duration
 from app.speaker.provenance import binding
@@ -34,11 +35,12 @@ def aggregate():
 
 
 class Calibration:
-    def __init__(self, settings, repository, store, engine, stt, capture, *, challenges=None, cancel=None):
+    def __init__(self, settings, repository, store, engine, stt, capture, *, challenges=None, cancel=None, present=None):
         self.settings, self.cfg = settings, settings.owner
         self.repository, self.store, self.engine = repository, store, engine
         self.stt, self.capture, self.cancel = stt, capture, cancel
         self.challenges = challenges or Challenges(self.cfg)
+        self.present = present or (lambda phrase: None)
 
     def profile(self, profile_id):
         try:
@@ -103,17 +105,27 @@ class Calibration:
         data["revision"], data["updated_at"] = str(uuid4()), now()
         self.store.save(profile_id, Record(state=state, private=data), previous=record.private["revision"])
 
+    @timing.timed("challenge_total")
     def measure(self, profile, session, *, wrong_phrase=False, known=()):
-        check_cancel(self.cancel)
-        challenge = self.challenges.create(session)
-        expires = self.challenges.pending[challenge.handle][2]
-        prompt = PHRASES[(PHRASES.index(challenge.phrase) + 1) % len(PHRASES)] if wrong_phrase else challenge.phrase
-        audio_id = uuid4()
-        def capture_guard():
+        challenge = None
+        def present(phrase):
             check_cancel(self.cancel)
-            if self.challenges.clock() >= expires:
-                raise OwnerError("challenge_expired")
+            prompt = PHRASES[(PHRASES.index(phrase) + 1) % len(PHRASES)] if wrong_phrase else phrase
+            self.present(prompt)
+            timing.end("consent_to_phrase_display")
+            timing.begin("phrase_display_to_enter")
+            check_cancel(self.cancel)
+
         try:
+            check_cancel(self.cancel)
+            challenge = self.challenges.create(session, present=present)
+            expires = self.challenges.pending[challenge.handle][2]
+            prompt = PHRASES[(PHRASES.index(challenge.phrase) + 1) % len(PHRASES)] if wrong_phrase else challenge.phrase
+            audio_id = uuid4()
+            def capture_guard():
+                check_cancel(self.cancel)
+                if self.challenges.clock() >= expires:
+                    raise OwnerError("challenge_expired")
             audio = self.capture(prompt, session, audio_id, guard=capture_guard)
             expected = self.challenges.consume(challenge, session)
             check_cancel(self.cancel)
@@ -127,7 +139,8 @@ class Calibration:
             check_cancel(self.cancel)
             if waveform_hash(audio) != digest:
                 raise OwnerError("binding_mismatch")
-            transcript = self.stt.transcribe_audio(audio, audio_id=audio_id, cancel=self.cancel)
+            with timing.span("phrase_stt"):
+                transcript = self.stt.transcribe_audio(audio, audio_id=audio_id, cancel=self.cancel)
             if waveform_hash(audio) != digest:
                 raise OwnerError("binding_mismatch")
             if transcript.status != "succeeded" or transcript.audio_id != audio_id:
@@ -152,9 +165,18 @@ class Calibration:
         except Exception:
             raise OwnerError("access_denied") from None
         finally:
-            self.challenges.pending.pop(challenge.handle, None)
+            if challenge is not None:
+                self.challenges.pending.pop(challenge.handle, None)
 
     def collect(self, profile_id, group, environment, *, consent=False, participant=None):
+        # Interactive consent binds the immutable selected trial inputs, separately
+        # from challenge/authentication evidence. True remains the trusted local API.
+        if type(consent) is TrialConsent:
+            if (consent.profile_id, consent.group, consent.environment, consent.participant) != (
+                profile_id, group, environment, participant
+            ):
+                raise OwnerError("binding_mismatch")
+            consent = True
         if not self.cfg.calibration_enabled or consent is not True:
             raise OwnerError("consent_required")
         if environment not in {"quiet", "different_environment"} or group not in {"owner", "holdout", "nonowner", "replay"}:
@@ -265,7 +287,8 @@ class Calibration:
         if record.state not in {State.REPLAY, State.SUSPENDED, State.EVALUATING}:
             raise OwnerError("invalid_transition")
         state = State.EVALUATING if self.eligible(record.private) else State.INCONCLUSIVE
-        self.save(profile_id, record, deepcopy(record.private), state)
+        if state != record.state:
+            self.save(profile_id, record, deepcopy(record.private), state)
         return self.status(profile_id)
 
     def approve(self, profile_id, *, consent=False):
@@ -297,6 +320,8 @@ class Calibration:
             raise OwnerError("invalid_transition")
         if action not in {"suspend", "revoke", "delete"}:
             raise OwnerError("invalid_transition")
+        if action == "revoke" and record.state == State.REVOKED:
+            return {"state": "revoked"}
         data = deepcopy(record.private)
         data["revision"], data["updated_at"] = str(uuid4()), now()
         self.store.save(profile_id, Record(state=State.SUSPENDED if action == "suspend" else State.REVOKED,

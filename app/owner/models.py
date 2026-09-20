@@ -184,6 +184,14 @@ class Record(Model):
                 "private": self.private}
 
 
+class TrialConsent(Model):
+    """Ephemeral selected-input consent; never an authentication or execution grant."""
+    profile_id: UUID = Field(repr=False, exclude=True)
+    group: Literal["owner", "nonowner", "holdout", "replay"] = Field(repr=False, exclude=True)
+    environment: Literal["quiet", "different_environment"] = Field(repr=False, exclude=True)
+    participant: UUID | None = Field(default=None, repr=False, exclude=True)
+
+
 class Challenge(Model):
     handle: UUID = Field(default_factory=uuid4, repr=False, exclude=True)
     phrase: str = Field(repr=False, exclude=True)

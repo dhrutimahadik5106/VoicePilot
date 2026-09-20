@@ -2,6 +2,7 @@
 from math import isfinite
 from threading import Event, Lock
 from time import monotonic
+from app.core.timing import timed, span
 from app.execution.state import Machine, TRANSITIONS
 from app.execution.models import State
 from app.launch.models import (AdapterMetadata, Configuration, LaunchAudit, LaunchError,
@@ -25,6 +26,7 @@ class WindowsLaunchAdapter:
         plan_document(step)
         return step.application_id in self.configuration.approved_application_ids
 
+    @timed("execution")
     def execute(self, key, step, cancel):
         if not self.precondition(step) or cancel.is_set():
             raise LaunchError(Status.CANCELLED)
@@ -56,6 +58,7 @@ class WindowsLaunchAdapter:
         return False  # Never close or kill applications.
 
 
+@timed("verification")
 def verify_observation(plan, observation):
     return (type(observation) is ProcessObservation and observation.available and observation.matched
             and observation.application_id == plan.application_id and observation.identity == plan.identity)
@@ -77,6 +80,7 @@ class LaunchController:
         if self._active is not None:
             self._active.set()
 
+    @timed("controller_total")
     def run(self, plan, permit, authority, *, cancel=None):
         if not self._lock.acquire(blocking=False):
             return LaunchResult(status=Status.INVALID_AUTHORIZATION, state=State.BLOCKED)
@@ -149,7 +153,8 @@ class LaunchController:
             # Independent OS observation is separate from adapter return values.
             initial_start = self.clock()
             backend_accessed = True
-            before = self.backend.observe(plan.application_id, plan.identity, self.configuration.observation_timeout)
+            with span("observation"):
+                before = self.backend.observe(plan.application_id, plan.identity, self.configuration.observation_timeout)
             guard()
             if self.clock() - initial_start >= self.configuration.observation_timeout:
                 raise LaunchError(Status.TIMED_OUT)
@@ -176,7 +181,8 @@ class LaunchController:
                     break
                 if self.clock() >= end:
                     break
-                after = self.backend.observe(plan.application_id, plan.identity, max(.001, end - self.clock()))
+                with span("observation"):
+                    after = self.backend.observe(plan.application_id, plan.identity, max(.001, end - self.clock()))
                 guard()
                 if self.clock() >= end:
                     if verify_observation(plan, after):
