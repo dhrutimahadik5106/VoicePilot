@@ -6,6 +6,10 @@ from math import isfinite
 from time import perf_counter
 
 STAGES = frozenset({
+    "runtime_initialization", "challenge_preparation", "challenge_speaker_inference", "challenge_phrase_verification",
+    "confirmation_enter_wait", "confirmation_capture", "confirmation_recording",
+    "command_recording", "command_speaker_inference", "confirmation_speaker_inference",
+    "confirmation_stt", "authorization", "total_session",
     "consent_to_phrase_display", "phrase_display_to_enter", "command_enter_wait",
     "recorder_setup", "capture", "command_capture", "challenge_total",
     "speaker_model_load", "speaker_integrity", "speaker_inference", "phrase_stt", "command_stt",

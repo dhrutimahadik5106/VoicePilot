@@ -26,7 +26,8 @@ def main(argv=None, *, settings=None, factory=None, read=input, write=print, int
     try:
         parser = Parser(description="Owner calibration and separately enabled REAL authenticated voice pilot")
         sub = parser.add_subparsers(dest="command", required=True)
-        for name in ("privacy", "inspect-config", "evaluate-synthetic", "evaluate-timings"):
+        for name in ("privacy", "inspect-config", "evaluate-synthetic", "evaluate-timings",
+                     "confirmation-policy", "evaluate-usability", "evaluate-threats", "evaluate-all"):
             sub.add_parser(name)
         for name in ("status", "begin", "resume", "owner", "nonowner", "holdout", "replay", "freeze",
                      "evaluate", "approve", "results", "suspend", "revoke", "delete", "voice-pilot"):
@@ -54,6 +55,16 @@ def main(argv=None, *, settings=None, factory=None, read=input, write=print, int
             from app.owner.timing_evaluation import evaluate
             write(json.dumps(evaluate()))
             return 0
+        if args.command == "confirmation-policy":
+            from app.owner.confirmation import policy_document
+            write(json.dumps(policy_document()))
+            return 0
+        if args.command in {"evaluate-usability", "evaluate-threats", "evaluate-all"}:
+            from app.owner.security_evaluation import usability, threats, evaluate_all
+            evaluate = {"evaluate-usability": usability, "evaluate-threats": threats,
+                        "evaluate-all": evaluate_all}[args.command]
+            write(json.dumps(evaluate()))
+            return 0
         tty = interactive or (lambda: sys.stdin.isatty() and sys.stdout.isatty())
         if not tty():
             raise OwnerError("consent_required")
@@ -75,7 +86,7 @@ def main(argv=None, *, settings=None, factory=None, read=input, write=print, int
             return 0
         write(PRIVACY)
         if args.command == "voice-pilot":
-            write("REAL AUTHENTICATED VOICE PILOT: one challenge and one separately verified command. No background listening.")
+            write("REAL AUTHENTICATED VOICE PILOT: one challenge, a separately verified command, and fresh voice confirmation for changes. No background listening.")
         action = args.command.upper()
         consent = "CONSENT " + action
         if action == "DELETE":

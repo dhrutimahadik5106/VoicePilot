@@ -485,3 +485,13 @@ Final maintenance validation (existing venv, all fake-only):
 - Guarded AST/import/default-config smoke: 14 modules passed; 45-second expiry and disabled defaults retained.
 - Fake timing CLI, private-artifact ignore checks and `git diff --check` passed.
 - No dependencies, real profile/calibration record, microphone, models or native Windows actions were touched.
+
+
+## Phase 6C superseding pilot confirmation policy
+
+Decision 0014 supersedes the earlier no-second-confirmation pilot behavior: state
+changes now require a separate speaker-verified confirmation capture, exact plan
+binding and a deadline capped by existing authentication. Reads remain two captures;
+mutations require three. Pilot challenge speaker acceptance now precedes phrase STT.
+Calibration collection, protected schema, configuration bindings and requirements
+remain unchanged. Timing evaluation now covers two sessions and six separate captures.

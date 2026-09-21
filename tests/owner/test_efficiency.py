@@ -59,13 +59,13 @@ def test_broken_diagnostic_clock_does_not_change_control_flow():
 
 def test_fake_timing_evaluation_denominators_and_cold_warm():
     result = evaluate()
-    assert result["sessions"] == result["verified_sessions"] == 1
-    assert result["captures"] == result["speaker_calls"] == result["stt_calls"] == 2
+    assert result["sessions"] == result["verified_sessions"] == 2
+    assert result["captures"] == result["speaker_calls"] == result["stt_calls"] == 6
     assert result["speaker_initializations"] == result["stt_initializations"] == 1
-    assert result["volume_reads"] == 2  # One baseline, one independent read-back.
+    assert result["volume_reads"] == 4  # One baseline, one independent read-back.
     rows = result["timings"]["samples"]
     for stage in ("speaker_inference", "stt_inference"):
-        assert [row["temperature"] for row in rows if row["stage"] == stage] == ["cold", "warm"]
+        assert [row["temperature"] for row in rows if row["stage"] == stage] == ["cold"] + ["warm"] * 5
     assert all(set(row) == {"stage", "seconds", "temperature", "completed"} for row in rows)
     assert {row["stage"] for row in rows} >= {"consent_to_phrase_display", "phrase_display_to_enter",
         "recorder_setup", "capture", "command_capture", "phrase_stt", "command_stt",
@@ -77,7 +77,7 @@ def test_timing_cli_is_safe_and_opt_in(harness):
     def forbidden(*args, **kwargs):
         pytest.fail("runtime_created")
     assert main(["evaluate-timings"], factory=forbidden, write=output.append) == 0
-    assert json.loads(output[-1])["verified_sessions"] == 1
+    assert json.loads(output[-1])["verified_sessions"] == 2
     assert main(["owner", "--profile", str(harness.profile.profile_id), "--environment", "quiet", "--timings"],
                 factory=forbidden, interactive=lambda: False, write=output.append) == 2
     assert json.loads(output[-1])["reason"] == "consent_required"

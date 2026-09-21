@@ -11,6 +11,7 @@ from app.owner.models import Configuration, OwnerError, Record
 from app.owner.calibration import Calibration
 from app.owner.challenge import Challenges, PHRASES
 from app.owner.pilot import Pilot
+from app.owner.confirmation import ConfirmationCapture
 from app.operations.controller import Controller
 from app.operations.fakes import FakeBackend, FakeStore
 from app.operations.models import Configuration as OperationsConfiguration
@@ -74,10 +75,13 @@ class Harness:
             sample_count=3, enrollment_session=UUID(int=2), enrollment_hashes=("a" * 64,) * 3,
             created_at=timestamp, updated_at=timestamp, policy_version="calibration-pending")
         self.now = 0.
+        self.environment = "synthetic-input"
         self.counter = 0
         self.phrase_counter = 0
         self.score = .95
         self.command_score = .95
+        self.confirmation_score = .95
+        self.confirmation = "confirm"
         self.command = "increase volume"
         self.phrase_wrong = False
         self.audio_text = {}
@@ -101,6 +105,9 @@ class Harness:
             Controller(self.settings.operations, backend=self.backend, store=FakeStore(), hub=self.hub),
             LaunchController(self.settings.launch, backend=self.launch_backend), clock=lambda: self.now, hub=self.hub)
 
+    def environment_token(self, session):
+        return self.environment
+
     def delete_profile(self, key):
         self.profile = None
 
@@ -118,8 +125,11 @@ class Harness:
         self.counter += 1
         pcm = (np.sin(np.arange(64000) * 2 * np.pi * (200 + self.counter) / 16000) * 4000).astype(np.int16)
         audio = RecordedAudio(format=AudioFormat(), samples=pcm[:, None])
-        self.audio_text[id(audio)] = "unrelated private marker" if self.phrase_wrong and phrase else phrase or self.command
-        self.audio_scores[id(audio)] = self.score if phrase else self.command_score
+        confirmation = type(phrase) is ConfirmationCapture
+        self.audio_text[id(audio)] = (self.confirmation if confirmation else
+            "unrelated private marker" if self.phrase_wrong and phrase else phrase or self.command)
+        self.audio_scores[id(audio)] = (self.confirmation_score if confirmation else
+            self.score if phrase else self.command_score)
         self.last_audio = audio
         return audio
 

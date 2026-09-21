@@ -106,7 +106,7 @@ class Calibration:
         self.store.save(profile_id, Record(state=state, private=data), previous=record.private["revision"])
 
     @timing.timed("challenge_total")
-    def measure(self, profile, session, *, wrong_phrase=False, known=()):
+    def measure(self, profile, session, *, wrong_phrase=False, known=(), speaker_guard=None):
         challenge = None
         def present(phrase):
             check_cancel(self.cancel)
@@ -118,7 +118,8 @@ class Calibration:
 
         try:
             check_cancel(self.cancel)
-            challenge = self.challenges.create(session, present=present)
+            with timing.span("challenge_preparation"):
+                challenge = self.challenges.create(session, present=present)
             expires = self.challenges.pending[challenge.handle][2]
             prompt = PHRASES[(PHRASES.index(challenge.phrase) + 1) % len(PHRASES)] if wrong_phrase else challenge.phrase
             audio_id = uuid4()
@@ -133,12 +134,16 @@ class Calibration:
             digest = waveform_hash(audio)
             if digest in profile.enrollment_hashes or digest in known:
                 raise OwnerError("duplicate_sample")
-            vector = self.engine.extract(audio, cancel=self.cancel)
+            with timing.span("challenge_speaker_inference"):
+                vector = self.engine.extract(audio, cancel=self.cancel)
             score = cosine(vector, profile.template, profile.model.dimension)
             del vector
+            if speaker_guard is not None:
+                speaker_guard(score)
             check_cancel(self.cancel)
             if waveform_hash(audio) != digest:
                 raise OwnerError("binding_mismatch")
+            capture_guard()
             with timing.span("phrase_stt"):
                 transcript = self.stt.transcribe_audio(audio, audio_id=audio_id, cancel=self.cancel)
             if waveform_hash(audio) != digest:
@@ -150,7 +155,8 @@ class Calibration:
             try:
                 # Raw concatenation can fuse adjacent segments. Use the shared STT
                 # boundary-whitespace view, never refinement or guessed word splits.
-                self.challenges.verify(expected, transcript.normalized_transcript)
+                with timing.span("challenge_phrase_verification"):
+                    self.challenges.verify(expected, transcript.normalized_transcript)
             except OwnerError:
                 phrase_ok = False
             if self.challenges.clock() >= expires:

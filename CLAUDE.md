@@ -181,3 +181,16 @@ use fakes with guards: never access real microphone/profile/DPAPI profile/model/
 or Windows actions. Never perform owner calibration or a voice pilot test yourself.
 Keep one command per challenge, command-speaker verification, provenance/expiry/single-use
 binding, uncertainty and independent observation. No Phase 6C or unrelated actions.
+
+
+## Phase 6C authorization
+
+Follow decision 0014. Extend only existing owner-pilot usability, numerical timings,
+separate authenticated voice confirmation and fake-only security evaluation. Preserve
+calibration schema/policy/counts and default-off adapters. Every audio stage requires
+fresh speaker inference before STT; state changes require exact expiring one-use
+confirmation. Never read real calibration/profile/model/audio or perform microphone/
+Windows/network actions in automated validation. Use fakes and active guards. Synthetic
+clone/virtual-input labels are not detectors; report stress acceptances honestly.
+No new real capability, frontend, later phase, dependency installation or threshold
+change is authorized by Phase 6C.

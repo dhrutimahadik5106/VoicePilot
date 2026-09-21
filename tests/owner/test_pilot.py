@@ -12,7 +12,8 @@ def test_allowed_one_command(calibrated, command):
     calibrated.command = command
     result = calibrated.pilot.run(calibrated.profile.profile_id)
     assert result.status == "completed", result
-    assert calibrated.capture_count == 2 and calibrated.stt_calls == 2
+    captures = 2 if command in {"What is the volume?", "What is the brightness?", "Stop.", "Cancel."} else 3
+    assert calibrated.capture_count == calibrated.stt_calls == captures
     assert calibrated.backend.mutations + calibrated.launch_backend.launched <= 1
     assert "raw_command" not in result.model_dump_json() + repr(result)
 
@@ -52,7 +53,7 @@ def test_failure_stops_downstream(calibrated, fault):
         return
     result = calibrated.pilot.run(calibrated.profile.profile_id)
     assert result.status == "blocked"
-    assert calibrated.stt_calls == 1
+    assert calibrated.stt_calls == (0 if fault == "speaker" else 1)
     assert calibrated.backend.mutations == calibrated.launch_backend.launched == 0
 
 
@@ -96,7 +97,7 @@ def test_no_resolver_after_authentication_failure(calibrated, monkeypatch):
         pytest.fail("resolver_called_after_denial")
     monkeypatch.setattr(module, "resolve", forbidden)
     result = calibrated.pilot.run(calibrated.profile.profile_id)
-    assert result.status == "blocked" and calibrated.capture_count == calibrated.stt_calls == 1
+    assert result.status == "blocked" and calibrated.capture_count == 1 and calibrated.stt_calls == 0
 
 
 def test_command_buffer_substitution_rejected(calibrated):

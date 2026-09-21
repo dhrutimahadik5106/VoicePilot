@@ -15,6 +15,7 @@ class OwnerError(Exception):
                    "speaker_uncertain", "authentication_expired", "authentication_replayed",
                    "challenge_replayed", "challenge_expired", "binding_mismatch", "cancelled",
                    "consent_required", "invalid_transition", "duplicate_sample", "unsupported_command",
+                   "confirmation_rejected", "confirmation_expired", "confirmation_replayed",
                    "storage_failed", "stt_rejected", "insufficient_samples", "concurrent_update"}
         self.code = code if code in allowed else "access_denied"
         super().__init__(self.code)

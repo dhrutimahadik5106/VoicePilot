@@ -631,3 +631,28 @@ manual calibration or voice-pilot testing, append `--timings` to the existing co
 It prints numerical durations only, saves nothing and does not bypass consent or expiry.
 Challenge/command share models within one process; separate CLI invocations start cold.
 See decision 0013 for timing interpretation and the unchanged security boundaries.
+
+
+## Phase 6C: confirmation and synthetic security evaluation
+
+The owner pilot now requires a separate speaker-verified `confirm` capture for volume
+changes and approved launches. Reads skip that capture; each new command still needs
+a fresh challenge. `cancel` causes no effect. Calibration remains mandatory and all
+real controls remain default-off. Very short speech may fail unchanged quality gates.
+
+Safe commands (no real profile, microphone, model or Windows action):
+
+```powershell
+.\venv\Scripts\python.exe -B -m app.owner.cli inspect-config
+.\venv\Scripts\python.exe -B -m app.owner.cli confirmation-policy
+.\venv\Scripts\python.exe -B -m app.owner.cli evaluate-usability
+.\venv\Scripts\python.exe -B -m app.owner.cli evaluate-threats
+.\venv\Scripts\python.exe -B -m app.owner.cli evaluate-timings
+.\venv\Scripts\python.exe -B -m app.owner.cli evaluate-all
+```
+
+Synthetic timings are injected seconds, not hardware benchmarks. Clone/virtual-input
+labels do not imply detection: high-similarity stress inputs can pass. No thresholds
+or protected calibration schema changed. Existing pending calibration remains blocked.
+See [decision 0014](docs/decisions/0014-voice-pilot-usability-security-and-confirmation.md)
+for evidence bindings, exact metrics, limitations and remaining user-only calibration.

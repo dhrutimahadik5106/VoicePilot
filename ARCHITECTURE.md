@@ -326,3 +326,20 @@ cannot supply authorization. Protected profiles/calibration are not cached acros
 Only unchanged evaluate/revoke transitions skip redundant writes. The fake timing schedule
 in `app.owner.timing_evaluation` is a development check, not a hardware benchmark. See
 ADR 0013 for exact counters, nested timing semantics and manual-only measurement commands.
+
+
+## Phase 6C confirmation boundary
+
+Owner Pilot retains the single-command pipeline: protected calibration preflight ->
+challenge capture/speaker acceptance/phrase STT -> separate command capture/speaker
+acceptance/STT -> closed resolver/typed plan -> optional separate confirmation capture/
+speaker acceptance/closed-response STT -> exact one-use authority -> existing controller
+-> independent observation/verification. Reads and process-local stop/cancel skip second
+confirmation. Safe launch discovery precedes confirmation; native creation does not.
+
+app.owner.confirmation owns fixed policy and private expiring plan/context binding.
+No configuration flag can disable required confirmation. No calibration schema, hash
+input or quality threshold changes. Runtime reuses models, never inference outputs,
+and releases device-session entries. app.owner.security_evaluation contains typed
+synthetic cases and numerical reports; app.core.timing remains optional, monotonic,
+bounded and nonpersistent. Details and limitations: decision 0014.

@@ -15,8 +15,10 @@ from app.commands.basic import resolve_basic
 from app.operations.models import Capability as C
 from app.launch.models import LaunchPlan, Status
 from app.execution.cancellation import GLOBAL
+from app.owner.confirmation import (ConfirmationCapture, PendingConfirmation, LIFETIME,
+    normalized_command, plan_binding, requires_confirmation, prompt)
 
-OPERATIONS = frozenset({C.VOLUME_READ, C.VOLUME_UP, C.VOLUME_DOWN, C.VOLUME_SET,
+OPERATIONS = frozenset({C.VOLUME_READ, C.MUTE_READ, C.VOLUME_UP, C.VOLUME_DOWN, C.VOLUME_SET,
                         C.MUTE, C.UNMUTE, C.BRIGHTNESS_READ, C.STOP, C.CANCEL})
 APPLICATIONS = frozenset({"notepad", "calculator", "chrome"})
 
@@ -24,10 +26,12 @@ APPLICATIONS = frozenset({"notepad", "calculator", "chrome"})
 def resolve(text):
     if type(text) is not str or len(text) > 120:
         raise OwnerError("unsupported_command")
-    normalized = text.strip().casefold().rstrip(".?!").strip()
+    normalized = normalized_command(text)
     if normalized in {"open " + app for app in APPLICATIONS}:
         return normalized[5:]
-    aliases = {"what is the volume": "read volume", "what is the brightness": "read brightness"}
+    aliases = {"what is the volume": "read volume", "what is the brightness": "read brightness",
+               "is the computer muted": "read mute state",
+               "volume up": "increase volume", "volume down": "decrease volume"}
     try:
         plan = resolve_basic(aliases.get(normalized, normalized))
     except Exception:
@@ -46,6 +50,7 @@ class Pilot:
         self._evidence = {}
         self._seen = set()
         self._admission = None
+        self._confirmation = None
         self._lock = Lock()
         self.cancel = Event()
 
@@ -73,8 +78,13 @@ class Pilot:
             if type(session) is not UUID or len(self._evidence) >= 32 or len(self._seen) >= 256:
                 raise OwnerError()
             profile, record = self.preflight(profile_id)
+            def speaker_guard(score):
+                outcome = decision(score, record.private["acceptance"], record.private["rejection"])
+                if outcome != "accepted":
+                    raise OwnerError("speaker_uncertain" if outcome == "retry_or_uncertain" else "speaker_rejected")
             score, phrase, digest, capture, _, challenge = self.calibration.measure(
-                profile, session, known=(*record.private["digests"], *self._seen))
+                profile, session, known=(*record.private["digests"], *self._seen),
+                speaker_guard=speaker_guard)
             self._seen.add(digest)
             outcome = decision(score, record.private["acceptance"], record.private["rejection"])
             if outcome != "accepted":
@@ -87,14 +97,20 @@ class Pilot:
             self._evidence[evidence.nonce] = {"profile": profile_id, "provenance": binding(profile),
                 "revision": record.private["revision"], "model": profile.model,
                 "policy": record.private["policy_version"], "session": session, "challenge": challenge,
-                "capture": capture, "phrase_verified": True, "created": timestamp,
+                "capture": capture, "environment": self._environment(session),
+                "nonce": evidence.nonce, "phrase_verified": True, "created": timestamp,
                 "expires": timestamp + self.cfg.authentication_ttl,
                 "inactive": timestamp + self.cfg.inactivity_timeout, "class": "owner-pilot-v1"}
             return Outcome(status="accepted", reason="accepted", evidence=evidence)
         except OwnerError as error:
-            return Outcome(status="rejected", reason=error.code)
+            return Outcome(status="retry_or_uncertain" if error.code == "speaker_uncertain" else "rejected", reason=error.code)
         except Exception:
             return Outcome(status="rejected", reason="access_denied")
+
+    def _environment(self, session):
+        source = getattr(self.calibration.capture, "__self__", None)
+        identity = getattr(source, "environment_token", None)
+        return identity(session) if identity is not None else None
 
     def check(self, evidence, session, *, consumed=None):
         if type(evidence) is not Evidence:
@@ -106,11 +122,87 @@ class Pilot:
             raise OwnerError("authentication_expired")
         if row["session"] != session or not row["phrase_verified"] or row["class"] != "owner-pilot-v1":
             raise OwnerError("binding_mismatch")
+        if row["environment"] != self._environment(session) or row["nonce"] != evidence.nonce:
+            raise OwnerError("binding_mismatch")
         profile, record = self.preflight(row["profile"])
         if (record.private["revision"] != row["revision"] or binding(profile) != row["provenance"]
                 or profile.model != row["model"] or record.private["policy_version"] != row["policy"]):
             raise OwnerError("profile_changed")
         return row
+
+    def _speech(self, session, row, guard, purpose, capture_prompt=None):
+        guard()
+        audio_id = uuid4()
+        with timing.span(purpose + "_capture"):
+            audio = self.calibration.capture(capture_prompt, session, audio_id, guard=guard)
+        guard()
+        profile, record = self.preflight(row["profile"])
+        digest = waveform_hash(audio)
+        if (len(self._seen) >= 256 or digest in self._seen or digest in record.private["digests"]
+                or digest in profile.enrollment_hashes):
+            raise OwnerError("duplicate_sample")
+        self._seen.add(digest)
+        check_audio(audio, self.settings.speaker, self.cfg)
+        with timing.span(purpose + "_speaker_inference"):
+            vector = self.calibration.engine.extract(audio, cancel=self.cancel)
+            score = cosine(vector, profile.template, profile.model.dimension)
+            del vector
+        outcome = decision(score, record.private["acceptance"], record.private["rejection"])
+        if outcome != "accepted":
+            raise OwnerError("speaker_uncertain" if outcome == "retry_or_uncertain" else "speaker_rejected")
+        guard()
+        if waveform_hash(audio) != digest:
+            raise OwnerError("binding_mismatch")
+        with timing.span(purpose + "_stt"):
+            stt = self.calibration.stt.transcribe_audio(audio, audio_id=audio_id, cancel=self.cancel)
+        if waveform_hash(audio) != digest:
+            raise OwnerError("binding_mismatch")
+        if stt.status != "succeeded" or stt.audio_id != audio_id:
+            raise OwnerError("stt_rejected")
+        check_speech_duration(stt, self.cfg)
+        guard()
+        return stt, audio_id, digest
+
+    @staticmethod
+    def _context(row, session):
+        return (session, row["session"], row["profile"], row["provenance"], row["revision"],
+                row["model"], row["policy"], row["challenge"], row["capture"],
+                row["command_id"], row["command_digest"], row["expires"], row["inactive"],
+                row["environment"], row["nonce"])
+
+    @timing.timed("authorization")
+    def _confirm(self, plan, text, session, row, guard):
+        guard()
+        frozen = plan_binding(plan)
+        context = self._context(row, session)
+        expires = min(row["expires"], row["inactive"])
+        if requires_confirmation(plan):
+            if self._confirmation is not None:
+                raise OwnerError("confirmation_replayed")
+            expires = min(self.clock() + LIFETIME, expires)
+            pending = PendingConfirmation(plan, text, context, expires)
+            self._confirmation = pending
+            def live():
+                guard()
+                pending.check(plan, text, self._context(row, session), self.clock())
+            try:
+                stt, _, _ = self._speech(session, row, live, "confirmation", ConfirmationCapture(prompt(plan)))
+                response = stt.normalized_transcript.strip().casefold()
+                if response == "cancel":
+                    raise OwnerError("cancelled")
+                if response != "confirm":
+                    raise OwnerError("confirmation_rejected")
+                pending.consume(plan, text, self._context(row, session), self.clock())
+            finally:
+                self._confirmation = None
+        def admitted():
+            guard()
+            if self.clock() >= expires:
+                raise OwnerError("confirmation_expired")
+            if plan_binding(plan) != frozen or self._context(row, session) != context:
+                raise OwnerError("binding_mismatch")
+        admitted()
+        return admitted
 
     def command(self, evidence, session):
         # Consume on every attempt, including mismatched/expired attempts.
@@ -119,33 +211,9 @@ class Pilot:
             raise OwnerError("authentication_replayed")
         self.check(evidence, session, consumed=row)
         guard = lambda: self.check(evidence, session, consumed=row)
-        audio_id = uuid4()
-        audio = self.calibration.capture(None, session, audio_id, guard=guard)
-        guard()
-        profile, record = self.preflight(row["profile"])
-        digest = waveform_hash(audio)
-        if digest in self._seen or digest in record.private["digests"] or digest in profile.enrollment_hashes:
-            raise OwnerError("duplicate_sample")
-        self._seen.add(digest)
-        check_audio(audio, self.settings.speaker, self.cfg)
-        # Authentication of the challenge never implies the next speaker is the owner.
-        score = cosine(self.calibration.engine.extract(audio, cancel=self.cancel), profile.template, profile.model.dimension)
-        outcome = decision(score, record.private["acceptance"], record.private["rejection"])
-        if outcome != "accepted":
-            raise OwnerError("speaker_uncertain" if outcome == "retry_or_uncertain" else "speaker_rejected")
-        guard()
-        if waveform_hash(audio) != digest:
-            raise OwnerError("binding_mismatch")
-        with timing.span("command_stt"):
-            stt = self.calibration.stt.transcribe_audio(audio, audio_id=audio_id, cancel=self.cancel)
-        if waveform_hash(audio) != digest:
-            raise OwnerError("binding_mismatch")
-        if stt.status != "succeeded" or stt.audio_id != audio_id:
-            raise OwnerError("stt_rejected")
-        check_speech_duration(stt, self.cfg)
-        guard()
+        stt, audio_id, digest = self._speech(session, row, guard, "command")
         with timing.span("planning"):
-            plan = resolve(stt.raw_transcript)
+            plan = resolve(stt.normalized_transcript)
         details = {"raw_command": stt.raw_transcript, "normalized_command": stt.normalized_transcript,
                    "canonical_command": plan if type(plan) is str else plan.capability.value,
                    "entities": {"application": plan} if type(plan) is str else {"percentage": plan.percentage}}
@@ -163,12 +231,14 @@ class Pilot:
             guard()
             plan = LaunchPlan(application_id=plan, identity=found.identity,
                               mode="authenticated_voice", authentication_id=evidence.nonce)
+            guard = self._confirm(plan, stt.normalized_transcript, session, row, guard)
             self._admission = (plan, "launch", guard, min(row["expires"], row["inactive"]))
             authority = LaunchAuthority(self, plan)
             result = self.launch.run(plan, authority.permit, authority, cancel=self.cancel)
             success = result.status in {Status.LAUNCHED, Status.ALREADY_RUNNING}
             reason = result.status.value
         else:
+            guard = self._confirm(plan, stt.normalized_transcript, session, row, guard)
             self._admission = (plan, "operations", guard, min(row["expires"], row["inactive"]))
             authority = OperationAuthority(self, plan)
             guard()
@@ -183,6 +253,7 @@ class Pilot:
         return PilotResult(status="completed" if success else "blocked", reason=reason,
                            execution_permitted=result.execution_permitted, details=details, **observed)
 
+    @timing.timed("total_session")
     def run(self, profile_id):
         if not self._lock.acquire(blocking=False):
             return PilotResult(status="blocked", reason="access_denied")
@@ -206,4 +277,10 @@ class Pilot:
         finally:
             self._evidence.clear()
             self._admission = None
-            self._lock.release()
+            self._confirmation = None
+            try:
+                release = getattr(self.calibration.capture, "__self__", None)
+                if release is not None and hasattr(release, "release_session"):
+                    release.release_session(session)
+            finally:
+                self._lock.release()

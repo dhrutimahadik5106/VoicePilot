@@ -1,5 +1,6 @@
 """Explicit local wiring; constructing these dependencies never captures or loads models."""
 from app.owner.models import OwnerError
+from app.owner.confirmation import ConfirmationCapture
 from app.core import timing
 from app.owner.calibration import Calibration
 from app.owner.storage import Store
@@ -7,6 +8,7 @@ from app.speaker.interactive import LocalSpeakerSession
 
 
 class Runtime:
+    @timing.timed("runtime_initialization")
     def __init__(self, settings, *, read=input, write=print):
         self.settings, self.read, self.write = settings, read, write
         self.local = LocalSpeakerSession(settings, read=read, write=write)
@@ -30,14 +32,19 @@ class Runtime:
 
     def capture(self, phrase, session, audio_id, *, guard):
         guard()
-        if phrase is None:
+        confirmation = type(phrase) is ConfirmationCapture
+        if confirmation:
+            self.write(phrase.message)
+            timing.begin("confirmation_enter_wait")
+        elif phrase is None:
             self.write("Authentication accepted. Speak ONE allowlisted command; this can execute a real action.")
             timing.begin("command_enter_wait")
         try:
             if self.read("Microphone capture next. Press Enter to begin; any other input cancels: ") != "":
                 raise OwnerError("cancelled")
         finally:
-            timing.end("phrase_display_to_enter" if phrase is not None else "command_enter_wait")
+            timing.end("confirmation_enter_wait" if confirmation else
+                       "phrase_display_to_enter" if phrase is not None else "command_enter_wait")
         guard()  # Do not start capture after an expired wait at the prompt.
         with timing.span("recorder_setup"):
             from app.audio.recorder import SoundDeviceRecorder
@@ -54,7 +61,8 @@ class Runtime:
         guard()  # Setup/display can take time; check immediately before device access.
         result = recorder.record(min(self.settings.speaker.capture_duration,
             self.settings.speaker.max_duration), control=terminal_control, guard=guard,
-            capture_stage="capture" if phrase is not None else "command_capture")
+            capture_stage="confirmation_recording" if confirmation else
+                          "capture" if phrase is not None else "command_recording")
         guard()
         if result.status != "succeeded":
             raise OwnerError("cancelled" if result.status == "cancelled" else "capture_quality_failed")
@@ -66,6 +74,12 @@ class Runtime:
             raise OwnerError("binding_mismatch")
         self._devices[session] = identity
         return result.audio
+
+    def environment_token(self, session):
+        return self._devices.get(session)
+
+    def release_session(self, session):
+        self._devices.pop(session, None)
 
     def calibration(self):
         return Calibration(self.settings, self.local.repository(), Store(), self.local.engine,

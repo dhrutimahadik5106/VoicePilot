@@ -2,6 +2,7 @@
 from types import SimpleNamespace
 from app.core import timing
 from app.owner.fakes import Harness
+from app.owner.confirmation import ConfirmationCapture
 
 
 def evaluate():
@@ -16,15 +17,20 @@ def evaluate():
         h.now += seconds
 
     def prepared_capture(phrase, session, audio_id, *, guard):
-        if phrase is None:
+        confirmation = type(phrase) is ConfirmationCapture
+        if confirmation:
+            timing.begin("confirmation_enter_wait")
+        elif phrase is None:
             timing.begin("command_enter_wait")
         advance(.25)
-        timing.end("phrase_display_to_enter" if phrase is not None else "command_enter_wait")
+        timing.end("confirmation_enter_wait" if confirmation else
+                   "phrase_display_to_enter" if phrase is not None else "command_enter_wait")
         guard()
         with timing.span("recorder_setup"):
             advance(.05)
         guard()
-        with timing.span("capture" if phrase is not None else "command_capture"):
+        with timing.span("confirmation_recording" if confirmation else
+                         "capture" if phrase is not None else "command_recording"):
             advance(1.)
             return capture(phrase, session, audio_id, guard=guard)
 
@@ -63,12 +69,17 @@ def evaluate():
     h.calibration.stt = SimpleNamespace(transcribe_audio=stt)
     h.backend.read_volume, h.backend.set_volume = observed, mutated
     try:
-        timing.begin("total_after_consent")
-        timing.begin("consent_to_phrase_display")
-        result = h.pilot.run(h.profile.profile_id)
-        timing.end("total_after_consent")
-        return {"label": "synthetic_schedule_not_real_performance", "sessions": 1,
-                "verified_sessions": int(result.status == "completed"),
+        verified = 0
+        for index in range(2):
+            timing.begin("total_after_consent")
+            with timing.span("runtime_initialization", "cold" if index == 0 else "warm"):
+                advance(.025 if index == 0 else 0.)
+            timing.begin("consent_to_phrase_display")
+            result = h.pilot.run(h.profile.profile_id)
+            verified += int(result.status == "completed")
+            timing.end("total_after_consent")
+        return {"label": "synthetic_schedule_not_real_performance", "sessions": 2,
+                "verified_sessions": verified,
                 "captures": h.capture_count, "stt_calls": h.stt_calls,
                 **counts, "timings": report.document()}
     finally:

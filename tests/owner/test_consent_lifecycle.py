@@ -92,7 +92,7 @@ def test_slow_privacy_and_all_consents_precede_fresh_challenge(harness, monkeypa
     runtime = SimpleNamespace(calibration=lambda: h.calibration, pilot=lambda _: h.pilot)
     assert main(arguments(h, group), settings=h.settings, factory=lambda *a, **k: runtime,
                 read=read, write=write, interactive=lambda: True) == 0
-    assert h.capture_count == (2 if group == "voice-pilot" else 1)
+    assert h.capture_count == (3 if group == "voice-pilot" else 1)
     assert not h.challenges.pending
     if group != "voice-pilot":
         assert h.backend.mutations == h.launch_backend.launched == 0
