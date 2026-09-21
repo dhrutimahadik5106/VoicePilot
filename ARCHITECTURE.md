@@ -343,3 +343,21 @@ input or quality threshold changes. Runtime reuses models, never inference outpu
 and releases device-session entries. app.owner.security_evaluation contains typed
 synthetic cases and numerical reports; app.core.timing remains optional, monotonic,
 bounded and nonpersistent. Details and limitations: decision 0014.
+
+
+## Phase 6D application boundary
+
+app.session.SessionService (service module) owns bounded VoicePilotSession state,
+clarification/confirmation cards, privacy-filtered views/events/history and explicit
+activation. app.api.Application is strict in-process dispatch; app.api.server is a
+thin opt-in numeric-loopback HTTP adapter. Neither imports nor server startup captures
+audio, loads models or reads protected profiles. Production creation is locked.
+
+DemoDriver reuses synthetic owner capture/authentication and Phase 6C confirmation,
+then separate Phase 5B fake authority/execution/observation. Native launch/operations
+controller run methods cannot be reached from demos. The fake launch registry now
+accepts existing typed Calculator/Notepad targets. Native allowlists are unchanged.
+
+Explicit state transitions, single-use expiring clarification/confirmation, bounded
+synthetic waveform, no-store responses and process-local cancellation prepare Phase
+15A. Real capture integration and visual frontend remain unimplemented. See ADR 0015.

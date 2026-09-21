@@ -194,3 +194,15 @@ Windows/network actions in automated validation. Use fakes and active guards. Sy
 clone/virtual-input labels are not detectors; report stress acceptances honestly.
 No new real capability, frontend, later phase, dependency installation or threshold
 change is authorized by Phase 6C.
+
+
+## Phase 6D authorization
+
+Follow decision 0015. Unified typed session, explicit activation contracts, bounded
+transient waveform/history, strict loopback API and labelled fake demos are approved.
+Production creation stays denied without reading calibration/profile data. No native
+controller execution from demos; UI confirmation is synthetic only. Preserve Phase
+6C voice confirmation and policy. Tests block sockets/processes/devices/models and
+personal files; only fixed public registries and temporary test storage are allowed.
+No automatic server/browser/capture, dependency install, frontend, TTS, wake word,
+global hook, permanent history, LLM or new native action. Stop after Phase 6D delivery.

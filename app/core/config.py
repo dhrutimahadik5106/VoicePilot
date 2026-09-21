@@ -12,6 +12,7 @@ from app.execution.models import Configuration as ExecutionConfiguration
 from app.launch.models import Configuration as LaunchConfiguration
 from app.operations.models import Configuration as OperationsConfiguration
 from app.owner.models import Configuration as OwnerConfiguration
+from app.session.models import Configuration as APIConfiguration
 
 
 def validate_recordings_dir(value) -> Path:
@@ -50,6 +51,7 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(env_prefix="VOICEPILOT_", extra="forbid", env_nested_delimiter="__")
 
+    api: APIConfiguration = Field(default_factory=APIConfiguration)
     app_name: str = "VoicePilot"
     environment: Literal["development", "test", "production"] = "development"
     debug: bool = False

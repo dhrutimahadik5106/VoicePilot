@@ -27,7 +27,7 @@ def isolated_environment(monkeypatch, tmp_path):
 
 def test_safe_defaults(tmp_path):
     settings = Settings()
-    assert settings.model_dump(exclude={"speaker", "planning", "execution", "launch", "operations", "owner"}) == {
+    assert settings.model_dump(exclude={"speaker", "planning", "execution", "launch", "operations", "owner", "api"}) == {
         "app_name": "VoicePilot", "environment": "development", "debug": False,
         "log_level": "INFO", "data_dir": Path("data"), "log_dir": Path("logs"),
         "llm_provider": "disabled", "ollama_base_url": "http://localhost:11434",
@@ -54,6 +54,14 @@ def test_safe_defaults(tmp_path):
         "stt_safety_max_output_characters": 8192,
         "stt_hotwords": "VoicePilot Spotify WhatsApp Chrome YouTube",
         "stt_contextual_enabled": False,
+    }
+    assert settings.api.model_dump() == {
+        "enabled": False, "host": "127.0.0.1", "port": 8765,
+        "allowed_origins": ("http://127.0.0.1:5173",), "demo_enabled": True,
+        "max_sessions": 16, "max_events": 64, "max_history": 100,
+        "session_timeout": 120, "clarification_expiry": 30, "max_request_bytes": 4096,
+        "transcript_display": False, "waveform_enabled": True, "production_enabled": False,
+        "tts_enabled": False, "wake_word_enabled": False, "permanent_history_enabled": False,
     }
     assert settings.planning.simulation_only is True
     assert settings.planning.trace_saving_enabled is False

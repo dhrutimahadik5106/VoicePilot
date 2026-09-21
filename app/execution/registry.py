@@ -47,7 +47,7 @@ def validate_step(step):
     if type(step) is not FakeStep or step.capability not in REGISTRY or step.risk != Risk.LOW:
         raise ExecutionError()
     args = step.arguments
-    if args.control is not None or args.application not in {"spotify", "chrome"}:
+    if args.control is not None or args.application not in {"spotify", "chrome", "notepad", "calculator"}:
         raise ExecutionError()
     if step.capability == Capability.LAUNCH and args.media is not None:
         raise ExecutionError()

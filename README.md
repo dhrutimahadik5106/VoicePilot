@@ -656,3 +656,27 @@ labels do not imply detection: high-similarity stress inputs can pass. No thresh
 or protected calibration schema changed. Existing pending calibration remains blocked.
 See [decision 0014](docs/decisions/0014-voice-pilot-usability-security-and-confirmation.md)
 for evidence bindings, exact metrics, limitations and remaining user-only calibration.
+
+
+## Phase 6D local session/API foundation
+
+The local frontend boundary is disabled by default and supports labelled synthetic
+demos only. Real voice session creation remains calibration-blocked without reading
+a profile. No frontend, TTS, wake word or new native action is included.
+
+```powershell
+.\venv\Scripts\python.exe -B -m app.api.cli inspect-config
+.\venv\Scripts\python.exe -B -m app.api.cli routes
+.\venv\Scripts\python.exe -B -m app.api.cli capabilities
+.\venv\Scripts\python.exe -B -m app.api.cli evaluate-demo
+# User-only demo server; never starts capture or opens a browser:
+$env:VOICEPILOT_API__ENABLED = 'true'
+.\venv\Scripts\python.exe -B -m app.api.cli serve
+```
+
+Default API: http://127.0.0.1:8765/api/v1; frontend origin: http://127.0.0.1:5173.
+Mutations require JSON, the allowed Origin and X-VoicePilot-Request: 1. Events/history
+are bounded in memory; transcripts hidden by default. Emergency-stop reset requires
+a process restart. This single-threaded development adapter is not a production server.
+See [decision 0015](docs/decisions/0015-review-ready-unified-session-and-api.md) for exact
+routes, request bodies, scenarios, privacy limits and the Phase 15A frontend contract.
